@@ -39,10 +39,10 @@ if __name__ == "__main__":
     print("\n=== REPORT GENERATED ===")
     print(report_path)
 
-    llm_report_path = generate_llm_report(state, result)
-    if llm_report_path:
+    llm_report_result = generate_llm_report(state, result)
+    if llm_report_result["status"] == "generated":
         print("\n=== LLM REPORT GENERATED ===")
-        print(llm_report_path)
+        print(llm_report_result["path"])
     else:
         print("\n=== LLM REPORT SKIPPED ===")
-        print("Set GROQ_API_KEY to generate narrative-only report output.")
+        print(llm_report_result["error"])
