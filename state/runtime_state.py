@@ -1,29 +1,51 @@
-from typing import TypedDict, List, Dict, Any
+from __future__ import annotations
+
+from typing import Any, Dict, List, Set, TypedDict
+
+
+class InvestigationAction(TypedDict, total=False):
+    column: str
+    action: str
+    priority: float
+    reason: str
+    source: str
+
+
+class ActionRecord(TypedDict, total=False):
+    step: int
+    phase: str
+    column: str
+    action: str
+    source: str
+    reason: str
+    priority: float
+    status: str
+    details: Dict[str, Any]
+
 
 class AgentState(TypedDict):
-    # Dataset understand (record data types in each feature and description of these features)
-    dataset_metadata: Dict[str, Any]
-
-
+    dataset_metadata: Dict[str, Dict[str, Any]]
+    signals: Dict[str, Dict[str, Any]]
+    risk_scores: Dict[str, float]
+    analysis_results: Dict[str, Dict[str, Any]]
+    insights: Dict[str, Dict[str, Any]]
+    investigation_queue: List[InvestigationAction]
+    analyzed_columns: Set[str]
+    action_history: List[ActionRecord]
     total_columns: int
-    columns_analyzed: set[str]
-    last_rejection_reason: List[str]
+    visualizations: Dict[str, str]
 
-    # Planning
-    current_plan: Dict[str, Any] # know what to do next
-    plan_history: List[Dict[str, Any]] # record previous plan for retry
 
-    # Execution
-    execution_results: Dict[str, Any] # for insight layer
-
-    # Insight
-    insights: Dict[str, Any] # for critic
-
-    # Evaluation
-    evaluation: Dict[str, Any] # for controller to decide retry or not
-
-    # Governance
-    retry_count: int 
-
-    # Observability
-    logs: List[Dict[str, Any]] # recording the whole process
+def initialize_state() -> AgentState:
+    return {
+        "dataset_metadata": {},
+        "signals": {},
+        "risk_scores": {},
+        "analysis_results": {},
+        "insights": {},
+        "investigation_queue": [],
+        "analyzed_columns": set(),
+        "action_history": [],
+        "total_columns": 0,
+        "visualizations": {},
+    }

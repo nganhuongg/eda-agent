@@ -1,187 +1,174 @@
-# Governed EDA Agent
+# Risk-Driven EDA Agent
 
 ## Overview
 
-This project implements a bounded autonomous Exploratory Data Analysis (EDA) agent with deterministic governance and structured LLM-based report synthesis.
+This project implements a Version 2 exploratory data analysis agent that prioritizes investigation by risk instead of simple column coverage.
 
-Unlike typical LLM-based data tools, this system separates:
+The agent is deterministic for all numeric computation and state updates. An LLM is optional and is limited to narrative report rewriting only. It does not control planning, tool execution, or numeric results.
 
-- Deterministic control logic
-- Stochastic policy (planner)
-- Deterministic statistical execution
-- Structured semantic interpretation
-- Controlled LLM narrative generation
+## What The Agent Does
 
-The result is a layered analytical agent that preserves correctness while leveraging generative AI safely.
+For each dataset column, the agent:
 
----
+1. Profiles the dataset and records metadata.
+2. Extracts signals such as missingness, skewness, variance, entropy, and outlier ratio.
+3. Scores column risk.
+4. Plans the next investigation based on the highest-risk unexplored column or critic-recommended follow-up work.
+5. Runs analysis tools.
+6. Converts raw analysis into categorical insights.
+7. Triggers visualizations only when the insights justify them.
+8. Writes a deterministic markdown report.
 
-## Core Architecture
+The main loop is:
 
-The system follows a multi-layer control architecture:
+`observe -> assess -> plan -> act -> evaluate -> update state -> repeat`
 
-Dataset (Environment)
+## Global Agent State
 
-↓
+The runtime state includes:
 
-Profiler
+- `dataset_metadata`
+- `signals`
+- `risk_scores`
+- `analysis_results`
+- `insights`
+- `investigation_queue`
+- `analyzed_columns`
+- `action_history`
 
-↓
+## Analysis Signals
 
-Planner (stochastic)
+Numeric columns:
 
-↓
+- `mean`
+- `std`
+- `skewness`
+- `missing_ratio`
+- `outlier_ratio`
 
-Controller (deterministic governance)
+Categorical columns:
 
-↓
+- `unique_count`
+- `dominant_ratio`
+- `entropy`
+- `missing_ratio`
 
-Executor (statistical feature extraction)
+## Available Analysis Tools
 
-↓
-
-Structured Insight Layer
-
-↓
-
-Visualization Layer
-
-↓
-
-Deterministic Report Template
-
-↓
-
-LLM Narrative Rewriter
-
-↓
-
-Numeric Validation Guardrail
-
-
-### Deterministic Layers
-
-- Profiler (metadata extraction)
-- Controller (bounded retry + progress enforcement)
-- Executor (mean, std, skewness, missing ratio, dominance ratio)
-- Insight mapping (categorical schema)
-- Visualization generation
-- Report template
-- Numeric hallucination validator
-
-### Stochastic Layers
-
-- Coverage-biased planner
-- LLM narrative rewriter (constrained, non-governing)
-
-The LLM does not control termination, retry logic, or state mutation.
-
----
-
-## Governance Design
-
-The agent uses a bounded retry mechanism:
-
-- Retry counts consecutive non-progress events.
-- Termination occurs on:
-  - Full coverage
-  - MAX_RETRY exceeded
-- State mutation is transactional and only occurs on successful execution.
-
-This prevents infinite loops and hallucination-driven control flow.
-
----
-
-## Insight Schema
-
-### Numeric Columns
-
-- variance_level: low | moderate | high
-- skewness_direction: left | right | symmetric
-- data_quality_flag: clean | moderate_missing | high_missing
-
-### Categorical Columns
-
-- balance_level: balanced | moderate_imbalance | high_imbalance
-- cardinality_level: low | medium | high
-
----
-
-## Visual Outputs
-
-- Missing value heatmap
-- Distribution plots for numeric features
-- Category frequency plots for categorical features
-
----
-
-## LLM Safety Mechanism
-
-The LLM is restricted to narrative rewriting only.
-
-After generation:
-
-- All numerical values are extracted.
-- They are compared against deterministic report.
-- Mismatch triggers validation failure.
-
-This enforces numeric consistency.
-
----
+- `analyze_distribution`
+- `detect_outliers`
+- `analyze_missing_pattern`
+- `analyze_correlation`
 
 ## Project Structure
 
+```text
 eda_agent/
-
-│
-
 ├── config.py
-
 ├── main.py
-
-│
-
-├── profiling/
-
-├── planning/
-
-├── controller/
-
+├── data/
 ├── execution/
-
 ├── insight/
-
-├── visualization/
-
+├── orchestrator/
+├── planning/
+├── profiling/
 ├── report/
-
-│
-
+├── state/
+├── visualization/
 └── outputs/
+```
 
+## Requirements
 
----
+- Windows PowerShell
+- Python environment with the packages in `requirements.txt`
 
-## Example Outputs
+This repo already uses a local virtual environment at `.venv`. Use it if your system Python does not have the required packages.
 
-- Markdown audit report
-- Enhanced LLM technical report
-- Generated plots
+## Install
 
----
+Create and activate a virtual environment if needed:
 
-## Version 1 Scope
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-- Governed coverage-based exploration
-- Deterministic statistical analysis
-- Structured semantic interpretation
-- Controlled LLM narrative generation
+## How To Run The Agent
 
----
+The default input file is:
 
-## Future Work (Version 2+)
+```text
+data/sample.csv
+```
 
-- Semantic critic influencing retry logic
-- Adaptive planner based on risk signals
-- Multi-objective optimization (coverage + anomaly detection)
-- Interactive tool-use via natural language
+Run the agent from the repo root:
+
+```powershell
+.\.venv\Scripts\python.exe main.py
+```
+
+If your active Python already has the dependencies installed, this also works:
+
+```powershell
+python main.py
+```
+
+## How To Use A Different Dataset
+
+Edit the `file_path` value in [main.py](d:/Test/eda_agent/main.py) and point it to another CSV file.
+
+Current code expects a CSV readable by `pandas.read_csv`.
+
+## Outputs
+
+After a run, the agent writes:
+
+- `outputs/report.md`
+- `outputs/plots/` for insight-triggered visualizations
+
+If `GROQ_API_KEY` is set and the network is available, it can also write:
+
+- `outputs/report_llm.md`
+
+## Report Contents
+
+The deterministic report includes:
+
+- Risk ranking of columns
+- Extracted signals
+- Investigation history
+- Analysis results
+- Anomaly findings
+- Generated visualizations
+
+## LLM Safety Rule
+
+The LLM is optional and restricted to narrative rewriting.
+
+It must not:
+
+- Modify numeric values
+- Recalculate statistics
+- Invent new measurements
+- Change deterministic analysis results
+
+All numeric results come from the deterministic pipeline only.
+
+## Main Files
+
+- [main.py](d:/Test/eda_agent/main.py): entrypoint
+- [orchestrator.py](d:/Test/eda_agent/orchestrator/orchestrator.py): agent loop
+- [signal_extractor.py](d:/Test/eda_agent/profiling/signal_extractor.py): deterministic signal extraction
+- [risk_planner.py](d:/Test/eda_agent/planning/risk_planner.py): risk scoring and planning
+- [analysis_tools.py](d:/Test/eda_agent/execution/analysis_tools.py): analysis actions
+- [insight_generator.py](d:/Test/eda_agent/insight/insight_generator.py): categorical insight mapping
+- [critic.py](d:/Test/eda_agent/insight/critic.py): follow-up investigation suggestions
+- [report_generator.py](d:/Test/eda_agent/report/report_generator.py): deterministic reporting
+
+## Notes
+
+- Boolean columns are treated as categorical features.
+- Visualization is insight-driven, not unconditional.
+- If the optional LLM report cannot reach the API, the main run still completes successfully.

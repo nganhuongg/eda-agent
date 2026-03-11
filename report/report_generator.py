@@ -1,94 +1,91 @@
-# report/report_generator.py
+from __future__ import annotations
 
-from typing import Dict, Any
+import os
+from typing import Any, Dict
+
+
+def _format_number(value: Any) -> str:
+    if isinstance(value, float):
+        return f"{value:.4f}"
+    return str(value)
 
 
 def generate_report(state: Dict[str, Any], summary: Dict[str, Any]) -> str:
+    lines = ["# Dataset Technical Audit Report", ""]
 
-    lines = []
+    lines.extend(
+        [
+            "## 1. Overview",
+            f"- Status: {summary['status']}",
+            f"- Reason: {summary['reason']}",
+            f"- Steps Executed: {summary['steps']}",
+            f"- Columns Analyzed: {summary['columns_analyzed']}/{summary['total_columns']}",
+            "",
+        ]
+    )
 
-    lines.append("# Dataset Technical Audit Report\n")
-
-    # -----------------------------
-    # 1. Overview
-    # -----------------------------
-    lines.append("## 1. Dataset Overview\n")
-    lines.append(f"- Coverage Ratio: {summary['coverage_ratio']:.2f}")
-    lines.append(f"- Columns Analyzed: {summary['columns_analyzed']}/{summary['total_columns']}")
+    lines.append("## 2. Risk Ranking of Columns")
+    ranked_columns = sorted(state["risk_scores"].items(), key=lambda item: (-item[1], item[0]))
+    for column, score in ranked_columns:
+        lines.append(f"- {column}: {_format_number(score)}")
     lines.append("")
 
-    # -----------------------------
-    # 2. Data Quality Summary
-    # -----------------------------
-    lines.append("## 2. Data Quality Summary\n")
+    lines.append("## 3. Signal Summary")
+    for column, signals in state["signals"].items():
+        metrics = ", ".join(f"{key}={_format_number(value)}" for key, value in signals.items())
+        lines.append(f"- {column}: {metrics}")
+    lines.append("")
 
-    high_missing_columns = []
+    lines.append("## 4. Investigation History")
+    for entry in state["action_history"]:
+        if entry.get("phase") not in {"plan", "act", "evaluate", "update_state"}:
+            continue
 
+        details = entry.get("details", {})
+        lines.append(
+            f"- Step {entry['step']} | {entry['phase']} | {entry.get('column', '-')}"
+            f" | {entry.get('action', '-')}"
+            f" | source={entry.get('source', '-')}"
+            f" | reason={entry.get('reason', '-')}"
+            f" | status={entry.get('status', '-')}"
+        )
+        if details:
+            detail_text = ", ".join(f"{key}={_format_number(value)}" for key, value in details.items())
+            lines.append(f"  details: {detail_text}")
+    lines.append("")
+
+    lines.append("## 5. Analysis Results")
+    for column, actions in state["analysis_results"].items():
+        lines.append(f"### {column}")
+        for action, result in actions.items():
+            metrics = ", ".join(f"{key}={_format_number(value)}" for key, value in result.items())
+            lines.append(f"- {action}: {metrics}")
+        lines.append("")
+
+    lines.append("## 6. Anomaly Findings")
+    findings_written = False
     for column, insight in state["insights"].items():
-        if insight.get("data_quality_flag") == "high_missing":
-            high_missing_columns.append(column)
-
-    if high_missing_columns:
-        lines.append("- Columns with high missing values:")
-        for col in high_missing_columns:
-            lines.append(f"  - {col}")
-    else:
-        lines.append("- No columns with high missing values detected.")
-
+        for finding in insight.get("anomaly_findings", []):
+            lines.append(f"- {column}: {finding}")
+            findings_written = True
+    if not findings_written:
+        lines.append("- No major anomalies were flagged by the rule-based insight layer.")
     lines.append("")
 
-    # -----------------------------
-    # 3. Numeric Feature Analysis
-    # -----------------------------
-    lines.append("## 3. Numeric Feature Analysis\n")
-
-    for column, meta in state["dataset_metadata"].items():
-
-        if meta["type"] != "numeric":
-            continue
-
-        insight = state["insights"].get(column, {})
-
-        lines.append(f"### {column}")
-        lines.append(f"- Variance Level: {insight.get('variance_level')}")
-        lines.append(f"- Skewness Direction: {insight.get('skewness_direction')}")
-        lines.append(f"- Data Quality: {insight.get('data_quality_flag')}")
-        lines.append("")
-
-    # -----------------------------
-    # 4. Categorical Feature Analysis
-    # -----------------------------
-    lines.append("## 4. Categorical Feature Analysis\n")
-
-    for column, meta in state["dataset_metadata"].items():
-
-        if meta["type"] != "categorical":
-            continue
-
-        insight = state["insights"].get(column, {})
-
-        lines.append(f"### {column}")
-        lines.append(f"- Balance Level: {insight.get('balance_level')}")
-        lines.append(f"- Cardinality Level: {insight.get('cardinality_level')}")
-        lines.append("")
-
-    # -----------------------------
-    # 5. Visual Assets
-    # -----------------------------
-    lines.append("## 5. Generated Visualizations\n")
-
-    for name, path in state.get("visualizations", {}).items():
-        lines.append(f"- {name}: {path}")
+    lines.append("## 7. Visualizations")
+    visualizations = state.get("visualizations", {})
+    if visualizations:
+        for name, path in visualizations.items():
+            lines.append(f"- {name}: {path}")
+    else:
+        lines.append("- No visualizations were triggered by the current insight set.")
+    lines.append("")
 
     report_text = "\n".join(lines)
-
-    # Save report
-    import os
     os.makedirs("outputs", exist_ok=True)
 
     path = "outputs/report.md"
-
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(report_text)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(report_text)
 
     return path
