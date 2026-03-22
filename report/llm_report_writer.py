@@ -1,12 +1,89 @@
 import os
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import httpx
 from openai import OpenAI
 
 
+def _format_number(value: Any) -> str:
+    if isinstance(value, float):
+        return f"{value:.4f}"
+    return str(value)
+
+
+def _build_llm_input_summary(state: Dict[str, Any], summary: Dict[str, Any]) -> str:
+    lines: List[str] = [
+        "# Compact Deterministic Audit Summary",
+        "",
+        "## Overview",
+        f"- Status: {summary['status']}",
+        f"- Reason: {summary['reason']}",
+        f"- Steps Executed: {summary['steps']}",
+        f"- Columns Analyzed: {summary['columns_analyzed']}/{summary['total_columns']}",
+        "",
+        "## Top Risk Columns",
+    ]
+
+    ranked_columns = sorted(
+        state["risk_scores"].items(),
+        key=lambda item: (-item[1], item[0]),
+    )[:8]
+    for column, score in ranked_columns:
+        lines.append(f"- {column}: {_format_number(score)}")
+
+    lines.extend(["", "## Key Investigation Summary"])
+    investigation_lines = 0
+    for entry in state["action_history"]:
+        if entry.get("phase") != "act":
+            continue
+
+        column = entry.get("column", "-")
+        action = entry.get("action", "-")
+        details = entry.get("details", {})
+        brief_details = ", ".join(
+            f"{key}={_format_number(value)}"
+            for key, value in list(details.items())[:4]
+        )
+        lines.append(f"- Step {entry['step']} | {column} | {action} | {brief_details}")
+        investigation_lines += 1
+        if investigation_lines >= 10:
+            break
+
+    lines.extend(["", "## Anomaly Findings"])
+    finding_count = 0
+    for column, insight in state["insights"].items():
+        for finding in insight.get("anomaly_findings", []):
+            lines.append(f"- {column}: {finding}")
+            finding_count += 1
+            if finding_count >= 12:
+                break
+        if finding_count >= 12:
+            break
+    if finding_count == 0:
+        lines.append("- No major anomalies were flagged by the rule-based insight layer.")
+
+    lines.extend(["", "## Visualization Summary"])
+    visualizations = state.get("visualizations", {})
+    if visualizations:
+        for name, path in list(visualizations.items())[:12]:
+            lines.append(f"- {name}: {path}")
+    else:
+        lines.append("- No visualizations were triggered by the current insight set.")
+
+    lines.extend(["", "## Insight Snapshot"])
+    for column, insight in list(state["insights"].items())[:8]:
+        concise_insight = ", ".join(
+            f"{key}={value}"
+            for key, value in insight.items()
+            if key not in {"anomaly_findings", "recommended_visualizations"}
+        )
+        lines.append(f"- {column}: {concise_insight}")
+
+    return "\n".join(lines)
+
+
 def generate_llm_report(state: Dict[str, Any], summary: Dict[str, Any]) -> Dict[str, str]:
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = (os.getenv("GROQ_API_KEY") or "").strip()
     if not api_key:
         return {
             "status": "missing_key",
@@ -24,6 +101,7 @@ def generate_llm_report(state: Dict[str, Any], summary: Dict[str, Any]) -> Dict[
     except Exception as exc:
         return {
             "status": "request_failed",
+            "api_key": api_key[:4] + "..." if api_key else "None",
             "path": "",
             "error": f"Cannot reach Groq API at {base_url}. {type(exc).__name__}: {exc}",
         }
@@ -33,22 +111,22 @@ def generate_llm_report(state: Dict[str, Any], summary: Dict[str, Any]) -> Dict[
         base_url=base_url
     )
 
-    deterministic_report = open("outputs/report.md", "r", encoding="utf-8").read()
+    deterministic_report = _build_llm_input_summary(state, summary)
 
     prompt = f"""
 You are a senior data auditor producing narrative only.
 
-Rewrite the following deterministic technical audit into a professional report.
+Rewrite the following compact deterministic technical audit into a professional report.
 
 Rules:
 - Do NOT invent, recalculate, round differently, or modify any statistic.
 - Do NOT add new numeric claims.
-- Do NOT omit risk rankings, investigation history, anomaly findings, or visualizations.
+- Do NOT omit the major risk rankings, investigation history, anomaly findings, or visualizations contained in the summary.
 - Preserve every numeric value exactly as provided.
 - Improve only wording, structure, and readability.
 
-Deterministic Report:
-----------------------
+Compact Deterministic Report:
+----------------------------
 {deterministic_report}
 """
 
