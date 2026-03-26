@@ -6,6 +6,51 @@ This project implements a Version 2 exploratory data analysis agent that priorit
 
 The agent is deterministic for all numeric computation and state updates. An LLM is optional and is limited to narrative report rewriting only. It does not control planning, tool execution, or numeric results.
 
+## Version Evolution
+
+### Version 1: Coverage-Driven Baseline
+
+Version 1 of the agent focused on coverage of all columns in the dataset.
+
+The main objective was simple:
+
+1. Load the dataset and identify column types.
+2. Select columns that had not been analyzed yet.
+3. Run basic statistical summaries for those columns.
+4. Mark them as covered.
+5. Repeat until all columns had been visited.
+
+This design worked well as a baseline because it guaranteed broad exploration and made termination easy to define. Once every column had been inspected at least once, the run could stop.
+
+However, Version 1 had an important limitation: coverage does not reflect importance. A stable low-risk column and a highly problematic column could receive the same attention. That meant the agent was systematic, but not selective or adaptive.
+
+### Version 2: Risk-Driven Agent
+
+Version 2 improves the agent by shifting from coverage-first exploration to risk-driven investigation.
+
+Instead of only asking whether a column has been visited, the agent now asks:
+
+- Which column currently has the highest risk?
+- Does this column require deeper follow-up investigation?
+
+The Version 2 workflow is:
+
+1. Profile the dataset and collect column metadata.
+2. Extract deterministic signals such as missingness, skewness, variance, entropy, and outlier ratio.
+3. Compute a risk score for each column.
+4. Investigate the highest-risk unexplored column.
+5. Generate rule-based insights from the analysis results.
+6. Let the critic decide whether follow-up analysis is needed.
+7. Trigger visualizations only when the insight layer justifies them.
+8. Write a deterministic report, with optional LLM narrative rewriting.
+
+### What Improved From V1 To V2
+
+- Version 1 prioritized breadth of coverage; Version 2 prioritizes analytical importance.
+- Version 1 treated columns more uniformly; Version 2 adapts investigation depth based on signals and insights.
+- Version 1 mainly ensured every column was visited; Version 2 supports follow-up actions such as outlier checks, missingness analysis, and correlation analysis.
+- Version 1 was a useful baseline; Version 2 is more targeted, anomaly-aware, and useful for real investigation.
+
 ## What The Agent Does
 
 For each dataset column, the agent:
@@ -117,7 +162,7 @@ python main.py
 
 ## How To Use A Different Dataset
 
-Edit the `file_path` value in [main.py](d:/Test/eda_agent/main.py) and point it to another CSV file.
+Edit the `file_path` value in [main.py](eda_agent/main.py) and point it to another CSV file.
 
 Current code expects a CSV readable by `pandas.read_csv`.
 
@@ -158,14 +203,14 @@ All numeric results come from the deterministic pipeline only.
 
 ## Main Files
 
-- [main.py](d:/Test/eda_agent/main.py): entrypoint
-- [orchestrator.py](d:/Test/eda_agent/orchestrator/orchestrator.py): agent loop
-- [signal_extractor.py](d:/Test/eda_agent/profiling/signal_extractor.py): deterministic signal extraction
-- [risk_planner.py](d:/Test/eda_agent/planning/risk_planner.py): risk scoring and planning
-- [analysis_tools.py](d:/Test/eda_agent/execution/analysis_tools.py): analysis actions
-- [insight_generator.py](d:/Test/eda_agent/insight/insight_generator.py): categorical insight mapping
-- [critic.py](d:/Test/eda_agent/insight/critic.py): follow-up investigation suggestions
-- [report_generator.py](d:/Test/eda_agent/report/report_generator.py): deterministic reporting
+- [main.py](eda_agent/main.py): entrypoint
+- [orchestrator.py](eda_agent/orchestrator/orchestrator.py): agent loop
+- [signal_extractor.py](eda_agent/profiling/signal_extractor.py): deterministic signal extraction
+- [risk_planner.py](eda_agent/planning/risk_planner.py): risk scoring and planning
+- [analysis_tools.py](eda_agent/execution/analysis_tools.py): analysis actions
+- [insight_generator.py](eda_agent/insight/insight_generator.py): categorical insight mapping
+- [critic.py](eda_agent/insight/critic.py): follow-up investigation suggestions
+- [report_generator.py](eda_agent/report/report_generator.py): deterministic reporting
 
 ## Notes
 
