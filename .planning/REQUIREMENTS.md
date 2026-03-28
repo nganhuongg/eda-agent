@@ -87,13 +87,34 @@ Deferred to future release.
 
 ## Traceability
 
-Updated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ANLST-01 to ANLST-06 | TBD | Pending |
-| CRIT-01 to CRIT-05 | TBD | Pending |
-| LOOP-01 to LOOP-05 | TBD | Pending |
-| SYNTH-01 to SYNTH-02 | TBD | Pending |
-| TEMP-01 to TEMP-06 | TBD | Pending |
-| RPT-01 to RPT-05 | TBD | Pending |
+| TEMP-01 | Phase 1 | Pending |
+| TEMP-02 | Phase 1 | Pending |
+| TEMP-03 | Phase 1 | Pending |
+| TEMP-04 | Phase 1 | Pending |
+| TEMP-05 | Phase 1 | Pending |
+| TEMP-06 | Phase 1 | Pending |
+| CRIT-01 | Phase 2 | Pending |
+| CRIT-02 | Phase 2 | Pending |
+| CRIT-03 | Phase 2 | Pending |
+| CRIT-04 | Phase 2 | Pending |
+| CRIT-05 | Phase 2 | Pending |
+| LOOP-01 | Phase 3 | Pending |
+| LOOP-02 | Phase 3 | Pending |
+| LOOP-03 | Phase 3 | Pending |
+| LOOP-04 | Phase 3 | Pending |
+| LOOP-05 | Phase 3 | Pending |
+| ANLST-01 | Phase 4 | Pending |
+| ANLST-02 | Phase 4 | Pending |
+| ANLST-03 | Phase 4 | Pending |
+| ANLST-04 | Phase 4 | Pending |
+| ANLST-05 | Phase 4 | Pending |
+| ANLST-06 | Phase 4 | Pending |
+| SYNTH-01 | Phase 6 | Pending |
+| SYNTH-02 | Phase 6 | Pending |
+| RPT-01 | Phase 6 | Pending |
+| RPT-02 | Phase 6 | Pending |
+| RPT-03 | Phase 6 | Pending |
+| RPT-04 | Phase 6 | Pending |
+| RPT-05 | Phase 6 | Pending |
