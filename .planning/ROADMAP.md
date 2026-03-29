@@ -11,7 +11,7 @@
 ## Phases
 
 - [x] **Phase 1: State Schema + Temporal Profiler** - Extend AgentState and build temporal signal extraction with graceful fallback (completed 2026-03-29)
-- [ ] **Phase 2: Critic Agent** - Build deterministic Critic with CriticVerdict schema and planned interface migration
+- [x] **Phase 2: Critic Agent** - Build deterministic Critic with CriticVerdict schema and planned interface migration (completed 2026-03-29)
 - [ ] **Phase 3: Ralph Loop Utility** - Build shared iterative refinement loop with feedback threading and max-iteration cap
 - [ ] **Phase 4: LLM Analyst** - Build LLM Analyst agent with AnalystDecision schema, context builder, and Groq retry wrapper
 - [ ] **Phase 5: Orchestrator Restructure** - Rewire orchestrator around Analyst+Critic loop with df boundary enforcement and Ralph Loop Gate 1
@@ -47,11 +47,11 @@ Plans:
   3. The Critic module makes zero network or API calls — it passes with the Groq API key unset
   4. `CriticVerdict` is a Pydantic BaseModel that passes `model_validate_json()` round-trip without error
   5. Rejected findings carry the Critic's `rejected_claims` list so the Analyst can address specific failures in the next attempt
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 02-01-PLAN.md — agents/ package scaffold + CriticVerdict schema + test_critic.py (RED state)
-- [ ] 02-02-PLAN.md — validate_finding() implementation + gut insight/critic.py + remove orchestrator import
+- [x] 02-02-PLAN.md — validate_finding() implementation + gut insight/critic.py + remove orchestrator import
 
 ### Phase 3: Ralph Loop Utility
 **Goal**: A shared iterative refinement utility exists that gates generation on Critic approval, threads feedback forward each iteration, and always exits within the iteration cap
@@ -107,7 +107,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. State Schema + Temporal Profiler | 2/2 | Complete   | 2026-03-29 |
-| 2. Critic Agent | 1/2 | In Progress|  |
+| 2. Critic Agent | 2/2 | Complete   | 2026-03-29 |
 | 3. Ralph Loop Utility | 0/? | Not started | - |
 | 4. LLM Analyst | 0/? | Not started | - |
 | 5. Orchestrator Restructure | 0/? | Not started | - |

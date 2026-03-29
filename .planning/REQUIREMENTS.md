@@ -16,11 +16,11 @@
 
 ### Critic Agent
 
-- [ ] **CRIT-01**: Critic agent validates every LLM claim against deterministic signals before the finding is accepted
-- [ ] **CRIT-02**: Critic agent rejects any claim that cannot be traced to a value in `signals` or `analysis_results`
+- [x] **CRIT-01**: Critic agent validates every LLM claim against deterministic signals before the finding is accepted
+- [x] **CRIT-02**: Critic agent rejects any claim that cannot be traced to a value in `signals` or `analysis_results`
 - [x] **CRIT-03**: Critic agent returns a structured `CriticVerdict` with approved flag and list of rejected claims
 - [x] **CRIT-04**: Critic agent is fully deterministic — no LLM call, no API dependency
-- [ ] **CRIT-05**: Rejected findings trigger Analyst rewrite with critic feedback included in next prompt
+- [x] **CRIT-05**: Rejected findings trigger Analyst rewrite with critic feedback included in next prompt
 
 ### Ralph Loop — Investigation Checkpoint
 
@@ -95,11 +95,11 @@ Deferred to future release.
 | TEMP-04 | Phase 1 | Complete |
 | TEMP-05 | Phase 1 | Complete |
 | TEMP-06 | Phase 1 | Complete |
-| CRIT-01 | Phase 2 | Pending |
-| CRIT-02 | Phase 2 | Pending |
+| CRIT-01 | Phase 2 | Complete |
+| CRIT-02 | Phase 2 | Complete |
 | CRIT-03 | Phase 2 | Complete |
 | CRIT-04 | Phase 2 | Complete |
-| CRIT-05 | Phase 2 | Pending |
+| CRIT-05 | Phase 2 | Complete |
 | LOOP-01 | Phase 3 | Pending |
 | LOOP-02 | Phase 3 | Pending |
 | LOOP-03 | Phase 3 | Pending |
