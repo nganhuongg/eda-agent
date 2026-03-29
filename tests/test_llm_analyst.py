@@ -73,13 +73,31 @@ def test_narrative_non_empty():
 # ── ANLST-06 / D-10: build_analyst_context contains no df reference ───────────
 
 def test_build_analyst_context_contains_no_df_reference():
-    raise NotImplementedError
+    import json
+    build_analyst_context = _get_build_analyst_context()
+    state = _make_minimal_state()
+    ctx = build_analyst_context(state, "revenue")
+    ctx_str = json.dumps(ctx, default=str)
+    assert _SENTINEL not in ctx_str
+    assert "DataFrame" not in ctx_str
+    assert isinstance(ctx["signals"]["missing_ratio"], float)
+    assert isinstance(ctx["signals"]["skewness"], float)
 
 
 # ── D-09: build_analyst_context extracts correct numeric fields ───────────────
 
 def test_build_analyst_context_fields_numeric():
-    raise NotImplementedError
+    build_analyst_context = _get_build_analyst_context()
+    state = _make_minimal_state()
+    ctx = build_analyst_context(state, "revenue")
+    assert ctx["column"] == "revenue"
+    assert ctx["column_type"] == "numeric"
+    assert "missing_ratio" in ctx["signals"]
+    assert "skewness" in ctx["signals"]
+    assert "outlier_ratio" in ctx["signals"]
+    assert "variance" in ctx["signals"]
+    assert ctx["risk_score"] == 0.42
+    assert isinstance(ctx["analyzed_columns"], list)
 
 
 # ── D-04: malformed JSON triggers fallback ────────────────────────────────────
@@ -109,4 +127,14 @@ def test_rate_limit_retries_then_fallback():
 # ── CRIT-04 regression: AnalystDecision survives JSON round-trip ──────────────
 
 def test_analyst_decision_json_roundtrip():
-    raise NotImplementedError
+    from agents.schemas import AnalystDecision
+    decision = AnalystDecision(
+        column="revenue",
+        hypothesis="Revenue distribution is right-skewed due to outliers",
+        recommended_tools=["analyze_distribution", "detect_outliers"],
+        business_label="risk",
+        narrative="Revenue shows concentrated risk from extreme values",
+        claims=[{"field": "skewness", "value": 2.3}],
+    )
+    restored = AnalystDecision.model_validate_json(decision.model_dump_json())
+    assert restored == decision
