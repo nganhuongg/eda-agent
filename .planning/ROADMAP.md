@@ -14,7 +14,7 @@
 - [x] **Phase 2: Critic Agent** - Build deterministic Critic with CriticVerdict schema and planned interface migration (completed 2026-03-29)
 - [x] **Phase 3: Ralph Loop Utility** - Build shared iterative refinement loop with feedback threading and max-iteration cap (completed 2026-03-29)
 - [x] **Phase 4: LLM Analyst** - Build LLM Analyst agent with AnalystDecision schema, context builder, and MiniMax retry wrapper (completed 2026-03-29)
-- [ ] **Phase 5: Orchestrator Restructure** - Rewire orchestrator around Analyst+Critic loop with df boundary enforcement and Ralph Loop Gate 1
+- [x] **Phase 5: Orchestrator Restructure** - Rewire orchestrator around Analyst+Critic loop with df boundary enforcement and Ralph Loop Gate 1 (completed 2026-03-29)
 - [ ] **Phase 6: Global Synthesizer + Output Review** - Build multi-angle synthesis, Ralph Loop Gate 2, and produce final ranked report
 
 ---
@@ -93,11 +93,11 @@ Plans:
   2. No agent module (llm_analyst, critic_agent, insight_generator) receives a `pd.DataFrame` object — confirmed by running a sentinel-df smoke test where any unexpected df access raises immediately
   3. The orchestrator loop handles a column whose Analyst consistently fails Critic review — it logs the exhaustion warning, uses the best attempt, and continues to the next column
   4. The v2 output contract is preserved: `outputs/report.md` and `outputs/plots/` are still produced when the run completes
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 05-01-PLAN.md — TDD RED stubs + AgentState.analyst_decisions extension + run_agent() column loop rewrite
-- [ ] 05-02-PLAN.md — Tests GREEN + full regression suite 51 tests passing
+- [x] 05-02-PLAN.md — Tests GREEN + full regression suite 51 tests passing
 
 ### Phase 6: Global Synthesizer + Output Review
 **Goal**: All per-column findings are synthesized into a single ranked report, reviewed through Ralph Loop Gate 2, and written to disk in v2-compatible output format with optional LLM narrative
@@ -122,5 +122,5 @@ Plans:
 | 2. Critic Agent | 2/2 | Complete   | 2026-03-29 |
 | 3. Ralph Loop Utility | 2/2 | Complete   | 2026-03-29 |
 | 4. LLM Analyst | 2/2 | Complete   | 2026-03-29 |
-| 5. Orchestrator Restructure | 1/2 | In Progress|  |
+| 5. Orchestrator Restructure | 2/2 | Complete   | 2026-03-29 |
 | 6. Global Synthesizer + Output Review | 0/? | Not started | - |
