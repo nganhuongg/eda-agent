@@ -352,43 +352,58 @@ The loop runs at two points: after each insight is generated (Gate 1) and after 
 
 ### Step 3.1 — The Loop Structure
 
-**What happens:** Create `orchestrator/ralph_loop.py`:
+**What happens:** Create `orchestrator/ralph_loop.py` with one public loop function:
 
 ```python
-def ralph_loop(generate_fn, critic_fn, context, max_iterations=5):
-    for i in range(max_iterations):
-        result = generate_fn(context)
-        verdict = critic_fn(result, context)
+def run_loop(
+    generator_fn: Callable[[List[str]], Any],
+    critic_fn: Callable[[Any], CriticVerdict],
+    max_iter: int = 5,
+) -> Any:
+    rejected_claims: List[str] = []
+    last_result: Any = None
+
+    for _i in range(max_iter):
+        last_result = generator_fn(rejected_claims)
+        verdict: CriticVerdict = critic_fn(last_result)
         if verdict.approved:
-            return result
-        context["feedback"] = verdict.rejected_claims  # ← thread feedback forward
-    return result  # best attempt after cap
+            return last_result
+        rejected_claims = verdict.rejected_claims  # replace, not extend
+
+    return last_result  # best attempt after cap
 ```
 
-**Why `for i in range(max_iterations)` and not `while not approved`?**
-`while not approved` has no exit condition if the Critic consistently rejects. If the Analyst keeps generating the same wrong output, the loop runs forever. `for i in range(5)` provides a hard ceiling. The agent always terminates — a fundamental requirement for any production system.
+**Why `for _i in range(max_iter)` and not `while not approved`?**
+`while not approved` has no exit condition if the Critic consistently rejects. If the Analyst keeps generating the same wrong output, the loop runs forever. `for _i in range(5)` provides a hard ceiling. The agent always terminates — a fundamental requirement for any production system.
 
 **Why return the last attempt instead of failing?**
-The agent's job is to produce a report, even when some findings are imperfect. Raising an exception after 5 failed iterations would crash the entire run. Returning the best available result (with a logged warning) means the report gets written with an honest note: "This finding could not be fully verified."
+The agent's job is to produce a report, even when some findings are imperfect. Raising an exception after 5 failed iterations would crash the entire run. Returning the last result means the report gets written — the final attempt is also the most-informed one, since it had the benefit of all prior rejection feedback applied to it.
+
+**Why is Gate 1 and Gate 2 the same function?**
+The two gates differ only in what "Critic" means. The loop mechanics (iterate, thread feedback, exit at cap) are identical. By accepting `critic_fn` as a callable argument, `run_loop()` is reusable at both checkpoints without any branching inside the loop. This follows the same callable-injection pattern already used by `ACTION_TO_TOOL` in the orchestrator.
 
 ---
 
 ### Step 3.2 — Feedback Threading (The Critical Detail)
 
-**What happens:** After each rejection, the rejected claims are added to `context["feedback"]` before the next call to `generate_fn`.
+**What happens:** After each rejection, `verdict.rejected_claims` replaces `rejected_claims` before the next call to `generator_fn`. On iteration 0, an empty list is passed.
 
-**Why this is essential:**
-Without feedback threading, the loop runs identically every iteration. The Analyst has no way to know what was wrong. It would generate the same output, the Critic would reject it for the same reasons, and you'd hit the iteration cap every time.
+**Why pass `rejected_claims` as an argument instead of via a shared dict?**
+The Analyst needs to know what failed in the last attempt — not a full history of all prior rejections. A flat `List[str]` passed as an argument is simpler, testable by inspecting call arguments, and keeps the prompt lean. Accumulating history would bloat the Analyst's context over multiple iterations with no benefit.
+
+**Why replace, not extend (`rejected_claims = verdict.rejected_claims`, not `.extend()`)?**
+Each Analyst rewrite addresses the prior iteration's failures. The new rejection set reflects the current state — a previous failure that was fixed should no longer appear. Accumulating all rejections would confuse the Analyst with stale issues it already corrected.
 
 With feedback threading:
 ```
-Iteration 1: "sales outlier rate is extreme (0.82)"
-Critic: REJECT — outlier_ratio signal is 0.003
+Iteration 0: generator called with []
+  Analyst: "sales outlier rate is extreme (0.82)"
+  Critic: REJECT — outlier_ratio signal is 0.003
+  rejected_claims → ["outlier_ratio"]
 
-Iteration 2 (with feedback):
-  Context includes: rejected_claims = ["outlier_ratio claimed as 0.82 but signal is 0.003"]
-  Analyst sees this and generates: "sales shows low outlier rate (0.003) but high skewness (2.4)"
-Critic: APPROVE
+Iteration 1: generator called with ["outlier_ratio"]
+  Analyst: "sales shows low outlier rate (0.003) but high skewness (2.4)"
+  Critic: APPROVE → loop exits
 ```
 
 The loop learns within a single run. That is a core property of agentic systems: **self-correction within the same execution.**
@@ -397,14 +412,70 @@ The loop learns within a single run. That is a core property of agentic systems:
 
 ### Step 3.3 — Gate 2 Quality Bar
 
-**What happens:** A variant of the loop that checks three conditions instead of claim-level grounding:
+**What happens:** `orchestrator/ralph_loop.py` also exports `quality_bar_critic(result) -> CriticVerdict` — a deterministic function that checks three conditions on the assembled report, then is passed as `critic_fn` to `run_loop()` for Gate 2:
 
-1. Every finding has a business label (risk / opportunity / anomaly / trend)
-2. No finding contains an unsupported numeric claim
-3. Findings are in ranked order (highest risk first)
+```python
+def quality_bar_critic(result: Any) -> CriticVerdict:
+    rejected: List[str] = []
 
-**Why different criteria for Gate 2?**
-Gate 1 checks individual claims. Gate 2 checks the assembled report as a whole. You can have individually valid findings that are assembled incorrectly (wrong order, missing labels, inconsistent taxonomy). Gate 2 catches those synthesis errors that Gate 1 can't see.
+    findings = result.get("findings", [])
+    signals = result.get("signals", {})
+    analysis_results = result.get("analysis_results", {})
+
+    # Check 1: all findings have business_label (non-empty)
+    for i, f in enumerate(findings):
+        if not f.get("business_label"):
+            rejected.append(f"findings[{i}].business_label")
+
+    # Check 2: no unsupported numeric claims
+    for i, f in enumerate(findings):
+        col = f.get("column", "")
+        for claim in f.get("claims", []):
+            field = claim.get("field", "")
+            if field and field not in signals.get(col, {}) and field not in analysis_results.get(col, {}):
+                rejected.append(f"findings[{i}].claims.{field}")
+
+    # Check 3: findings in descending order by score
+    scores = [f.get("score", f.get("priority")) for f in findings]
+    numeric = [s for s in scores if s is not None]
+    if numeric != sorted(numeric, reverse=True):
+        rejected.append("findings_order")
+
+    return CriticVerdict(approved=len(rejected) == 0, rejected_claims=rejected)
+```
+
+**Why different criteria for Gate 2 than Gate 1?**
+Gate 1 (`validate_finding`) checks individual numeric claims against computed signals. Gate 2 checks the assembled report as a whole. You can have individually valid findings that are assembled incorrectly: wrong order, missing labels, or a claim that was valid at column-level but references a signal that doesn't exist in the global result dict. Gate 2 catches synthesis-level errors that Gate 1 can't see because Gate 1 only saw one finding at a time.
+
+**Why keep `quality_bar_critic` in the same file as `run_loop`?**
+It is the Gate 2 critic — it belongs with the loop that uses it. Separating it into a different module would fragment Phase 3's scope with no decoupling benefit. Phase 6 (Global Synthesizer + Output Review) can extract it if the logic grows significantly.
+
+---
+
+### Phase 3 Tests (TDD)
+
+Two-wave structure: Wave 0 builds the test scaffold (RED state), Wave 1 implements to GREEN.
+
+**Wave 0 — TDD scaffold (Plan 03-01):**
+
+Creates `orchestrator/ralph_loop.py` as an importable shell (both functions raise `NotImplementedError`) and `tests/test_ralph_loop.py` with 10 named stubs. All stubs wrap calls in `pytest.raises(NotImplementedError)` — this is the RED state contract, not `pytest.mark.skip`. Pytest collects all 10 without error.
+
+**Wave 1 — Implementation (Plan 03-02):**
+
+Replaces the `NotImplementedError` bodies with working implementations until all 10 tests pass GREEN:
+
+| Test | Requirement | What it proves |
+|------|-------------|---------------|
+| `test_exits_on_approval` | LOOP-01 | Loop exits after 2 calls when critic approves on iter 2 |
+| `test_max_iter_never_approves` | LOOP-01, LOOP-03 | Generator called exactly 5 times; no exception raised |
+| `test_feedback_threading` | LOOP-02 | `calls[1] == ["field_a"]`, `calls[2] == ["field_b"]` (most recent only) |
+| `test_first_iter_empty_rejected` | LOOP-02 | `calls[0] == []` — iter 0 always receives empty list |
+| `test_no_exception_on_exhaustion` | LOOP-03 | Exhausted loop returns last result; no exception raised |
+| `test_gate2_uses_run_loop` | LOOP-04 | `quality_bar_critic` passes as `critic_fn` without any import changes |
+| `test_qbc_missing_business_label` | LOOP-05 | Finding with `business_label=""` → `approved=False` |
+| `test_qbc_unsupported_numeric` | LOOP-05 | Claim field absent from signals/analysis_results → `approved=False` |
+| `test_qbc_unranked_order` | LOOP-05 | Findings with scores `[1.0, 3.0]` (ascending) → `approved=False` |
+| `test_qbc_all_pass` | LOOP-05 | Labels present, claims supported, scores `[3.0, 1.0]` → `approved=True` |
 
 ---
 
@@ -422,79 +493,215 @@ Building it fourth means all of its dependencies are already tested and working.
 
 ---
 
-### Step 4.1 — The `AnalystDecision` Schema
+### Step 4.1 — The `AnalystDecision` Schema (Single LLM Call)
 
-**What happens:** Define the output contract for the LLM Analyst:
+**What happens:** Add `AnalystDecision` to `agents/schemas.py` alongside `CriticVerdict`:
 
 ```python
 class AnalystDecision(BaseModel):
     column: str
     hypothesis: str
-    recommended_tools: list[str]
-    reasoning: str
-    business_label: str  # "risk" | "opportunity" | "anomaly" | "trend"
+    recommended_tools: List[str]   # drawn from ACTION_TO_TOOL keys
+    business_label: Literal["risk", "opportunity", "anomaly", "trend"]
+    narrative: str                 # plain business language, no statistical jargon
+    claims: List[dict]             # [{"field": "skewness", "value": 2.3}, ...]
 ```
 
+**Why a single LLM call that returns both strategy AND the finding label?**
+
+There are two possible architectures here:
+
+**Option A (single call):** One LLM call per column. The Analyst looks at the signals and returns everything in one shot: which column to investigate, a hypothesis, which tools to run, a business label, a narrative, and the claims the Critic will validate.
+
+**Option B (two calls):** A first call returns an `InvestigationDecision` (column + hypothesis + tools). After the tools run, a second call returns a `FindingDecision` (label + narrative + claims) using the richer post-tool `analysis_results`.
+
+**Why single call is the right choice for this agent:**
+
+The signals available at Phase 4 are already rich enough to make accurate business label determinations without running tools first. Consider what the Analyst actually sees:
+
+```
+revenue:
+  missing_ratio: 0.12     ← 12% of values are missing
+  skewness: 2.3           ← heavily right-skewed
+  outlier_ratio: 0.08     ← 8% of rows are statistical outliers
+  variance: 94820.0       ← extreme spread
+  temporal:
+    trend_direction: up
+    trend_confidence: HIGH
+    mom_delta: +0.14      ← +14% month-over-month
+```
+
+A business analyst looking at those numbers would immediately say "this is a risk — high skew and 12% missing values in a revenue column is a data quality problem." The LLM can make that same judgment without needing to run `analyze_distribution` first. The signal extraction pipeline (Phase 1) does the hard measurement work; the LLM does the business interpretation.
+
+The `claims[]` array is the key insight: claims reference signal fields (`{"field": "skewness", "value": 2.3}`), and the Critic already validates against both `signals` and `analysis_results` (Phase 2 decision). So the Analyst can make grounded, Critic-validatable claims without post-tool data.
+
+**What single call gives you:**
+- Half the API calls (important when analyzing 10–20 columns in one run)
+- A cleaner Phase 4 scope — the module works completely in isolation without needing to run tools
+- Simpler test setup — all tests pass mock signal dicts, no tool execution needed
+- The Phase 5 (Orchestrator Restructure) wiring is also simpler — one call per column, not two
+
 **Why define the output schema before writing the prompt?**
-The schema IS the prompt's contract. When the LLM generates JSON, Pydantic parses and validates it. If the LLM omits `business_label` or puts a wrong type, the validation fails immediately — before the output reaches any downstream code. This is called "structured output" and it's the primary hallucination prevention technique.
+The schema IS the prompt's contract. When the LLM generates JSON, Pydantic parses and validates it via `model_validate_json()`. If the LLM omits `business_label` or puts the wrong type, validation fails immediately — before the output touches any downstream code. This is structured output, and it's the primary hallucination-prevention technique at the API boundary.
+
+**Why `Literal["risk", "opportunity", "anomaly", "trend"]` and not `str`?**
+A plain `str` field would let the LLM invent labels like "concern" or "problem". `Literal[...]` constrains the output to exactly four options at the Pydantic validation layer — before the Critic ever sees it. The Critic validates numeric claims; Pydantic validates structural claims. Both are deterministic.
+
+**Why `claims: List[dict]` included in the same decision?**
+The `claims[]` array is what the Critic validates. Putting it in `AnalystDecision` rather than a separate schema means the Analyst is responsible for producing checkable evidence alongside its interpretation. You cannot separate "what the Analyst claims" from "what the Critic checks" — they are the same data.
 
 ---
 
-### Step 4.2 — The Context Builder (Privacy Boundary)
+### Step 4.2 — The Context Builder: `build_analyst_context()` (Privacy Boundary)
 
-**What happens:** Create `build_analyst_context(state, column)` that produces:
+**What happens:** Create `build_analyst_context(state, column)` in `agents/llm_analyst.py`. This function is the only entry point from `AgentState` to the LLM — it extracts diagnostic fields and returns a clean dict with no DataFrame, no raw values, no PII.
+
+**Key fields extracted per column:**
 
 ```python
 {
-    "column": "sales",
+    "column": "revenue",
+    "risk_score": 0.74,
     "signals": {
-        "outlier_ratio": 0.18,
-        "skewness": 2.4,
-        "missing_ratio": 0.03,
-        "mean": 1204.5,
-        "std": 843.2
+        # numeric columns
+        "missing_ratio": 0.12,
+        "skewness": 2.3,
+        "outlier_ratio": 0.08,
+        "variance": 94820.0,
+        # categorical columns
+        "entropy": 1.4,
+        "dominant_ratio": 0.83,
+        "unique_count": 4,
     },
     "temporal": {
-        "direction": "up",
-        "confidence": "HIGH",
-        "mom_pct_change": {"2024-12": 0.14},
-        "forecast": [1350.2, 1410.8, 1465.3]
+        "trend_direction": "up",
+        "trend_confidence": "HIGH",
+        "mom_delta": 0.14,
+        "yoy_delta": 0.32,
+        "forecast": [1350.2, 1410.8, 1465.3],
     },
-    "prior_findings": [...],
-    "feedback": []  # populated by Ralph Loop on retry
+    "already_analyzed": ["customer_id", "region"],  # avoid re-recommending
+    "rejected_claims": [],  # populated by Ralph Loop on retry
 }
 ```
 
 **What is NOT in this context:**
-- Raw CSV rows
-- Actual column values
-- Column names that might reveal PII
-- DataFrame references
+- Raw CSV rows or any individual cell value
+- The DataFrame object itself
+- Column names that could reveal PII (only the target column name is passed)
+- Any reference to `df` whatsoever
+
+**Why key fields only, not the full signals dict?**
+
+The `signals` dict can be large on wide CSVs. A dataset with 50 columns would produce a signals dict with hundreds of entries across all columns. Passing the full dict to the LLM on every call would:
+
+1. Bloat the prompt with data the LLM doesn't need (it's analyzing *one* column per call)
+2. Increase token usage and API cost on every analysis
+3. Risk hitting context window limits on smaller models
+
+The key fields (`missing_ratio`, `skewness`, `outlier_ratio`, `variance` for numeric; `entropy`, `dominant_ratio`, `unique_count` for categorical; temporal signals when present) are the ones that actually drive business-relevant insight. The full signals dict contains many intermediate computation artifacts that don't translate to business meaning. By selecting only the diagnostic fields, the prompt stays lean and model-agnostic — it works regardless of whether MiniMax gives you 32k or 1M context tokens.
 
 **Why is this the privacy boundary?**
-The LLM (running via Groq/MiniMax API) processes this dict and sends it over the network. If raw CSV data were in the dict, your confidential business data would leave the machine. By building a context that contains only computed signals — numbers derived from the data — you get AI analysis without data exposure.
+The LLM calls the MiniMax API over the network. Whatever is in the prompt leaves the machine. By building a context that contains only derived statistics — numbers computed FROM the data but not the data itself — you get AI analysis without exposing the actual business records. The privacy boundary and the hallucination control are the same architectural decision: if the LLM can only see computed signals, it can only make claims about computed signals, and the Critic can verify every one of them.
 
-**Why this also prevents hallucination:**
-The LLM can only make claims about what's in the context. It can't invent `outlier_ratio: 0.82` if the context shows `outlier_ratio: 0.18`. The Critic then verifies that every claim in the Analyst's response matches the context values. The privacy boundary and the hallucination control are the same architectural decision.
+**Why a dedicated `build_analyst_context()` function rather than building the dict inline?**
+Because Phase 5 will call it inside a loop, and Phase 6's global synthesizer will need a variant of it. A named function with a clear signature is testable in isolation — specifically, the success criteria require a sentinel-DataFrame test that confirms no raw values escape through this function. You can't write that test for inline dict construction.
 
 ---
 
-### Step 4.3 — Groq/MiniMax Retry Wrapper
+### Step 4.3 — LLM Provider: MiniMax via Raw OpenAI SDK
 
-**What happens:** Wrap every API call in retry logic with exponential backoff:
+**What happens:** The Analyst calls MiniMax using the `openai` Python SDK with a `base_url` override:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.environ["MINIMAX_API_KEY"],
+    base_url="<MiniMax endpoint — discovered by researcher>",
+)
+```
+
+**Why MiniMax instead of Groq?**
+
+Groq's free tier has very tight token limits — too small for running analysis across multiple columns in a single session. MiniMax provides significantly more budget (two accounts at $30 each), which is practical for development, testing, and running real analysis pipelines during Phase 5 and 6 integration.
+
+**Why the raw `openai` SDK instead of a dedicated MiniMax SDK or LangChain?**
+
+Almost every modern LLM provider offers an OpenAI-compatible REST API. This means the same SDK — just change `base_url` and `api_key`. The decision to use the raw SDK (locked in STATE.md from the Groq era) was precisely to avoid dependency on any single provider. Switching from Groq to MiniMax requires changing two environment variables and one string constant — no new packages, no refactoring.
+
+LangChain adds an abstraction layer that hides what's actually happening in the API call. When something goes wrong (wrong JSON format, unexpected response structure), LangChain's error messages are harder to interpret than the raw SDK's. For a system where structured output validation is critical, you want to be close to the raw response.
+
+**Why `MINIMAX_API_KEY` as the environment variable?**
+If the key is unset, the Analyst immediately falls back to the deterministic pipeline — same behavior as an API failure. This means the agent runs correctly in CI, development environments without credentials, and any machine where the API key isn't configured. You get a valid (deterministic) report in all cases.
+
+---
+
+### Step 4.4 — API Failure Fallback: Deterministic Pipeline
+
+**What happens:** The API call is wrapped in retry logic. After 3 attempts with exponential backoff (1s → 2s → 4s), the Analyst falls back to the existing deterministic pipeline:
 
 ```
-Attempt 1 → wait 1s if 429
-Attempt 2 → wait 2s if 429
-Attempt 3 → wait 4s if 429
-After 3 attempts → fall back to deterministic output, log warning
+Attempt 1 → MiniMax API call
+  └─ 429 / timeout → wait 1s
+Attempt 2 → MiniMax API call
+  └─ 429 / timeout → wait 2s
+Attempt 3 → MiniMax API call
+  └─ failure → FALLBACK
+
+Fallback:
+  column = risk_driven_planner(state)          ← existing Phase 2 planner
+  finding = generate_insight_for_column(...)   ← existing Phase 1 insight generator
+  return AnalystDecision(                      ← same return type, consistent interface
+      column=column,
+      hypothesis="deterministic fallback",
+      recommended_tools=[plan["action"]],
+      business_label="risk",
+      narrative=str(finding),
+      claims=[],
+  )
 ```
 
-**Why not just crash on 429?**
-Rate limit errors are transient — the API is fine, the client is just sending too fast. Retrying with backoff handles transient errors automatically. A crash would abort the entire analysis run, losing all work done so far.
+**Why fall back to the deterministic pipeline instead of raising an exception?**
 
-**Why fall back to deterministic output instead of failing hard?**
-The v2 deterministic pipeline can still produce a valid report without LLM intelligence. If the API is down, you get a deterministic report instead of nothing. The agent degrades gracefully rather than failing catastrophically.
+This is a fundamental choice about what kind of system you're building. Two philosophies:
+
+**Fail fast:** Any unexpected condition raises an error. The run aborts. The user sees exactly what went wrong. This is good for development but terrible for production — a single API hiccup wipes out a full analysis run.
+
+**Degrade gracefully:** Unexpected conditions trigger a lesser-quality fallback that still produces a result. The run completes. The user gets output. A warning log explains what fell back.
+
+This agent processes confidential business data. Users run it to get insights before a meeting or decision. If the analysis aborts 80% of the way through because MiniMax returned a 429, the user is left with nothing. The deterministic pipeline exists, it works, and it produces valid (if less insightful) output. Using it as a fallback means the agent always delivers something useful.
+
+**Why return the same `AnalystDecision` type from the fallback?**
+The caller (Phase 5 orchestrator) should not need to know whether the result came from MiniMax or the fallback. If the fallback returned a different type, every call site would need an `isinstance` check. A consistent return type keeps the orchestrator loop simple and makes the fallback invisible to downstream code.
+
+**Why `risk_driven_planner` + `generate_insight_for_column` as the fallback sources?**
+These are the exact functions the v2 agent used for column selection and insight generation. They've been tested, they handle all column types, and they produce output the Critic can validate. Reusing them for the fallback means zero new code in the fallback path — and the fallback has the same test coverage as the functions themselves.
+
+---
+
+### Phase 4 Tests (TDD)
+
+Phase 4 follows the same Wave 0 (RED scaffold) → Wave 1 (GREEN implementation) structure as Phases 2 and 3:
+
+**Wave 0 — TDD scaffold:** Create `agents/llm_analyst.py` as an importable shell with `NotImplementedError` stubs. Create `tests/test_llm_analyst.py` with named test stubs covering ANLST-01 through ANLST-06. All stubs wrap calls in `pytest.raises(NotImplementedError)`.
+
+**Wave 1 — Implementation:** Replace stubs with working code until all tests pass GREEN.
+
+Key tests:
+
+| Test | Requirement | What it proves |
+|------|-------------|---------------|
+| `test_analyst_decision_schema` | ANLST-01/02/03/04/05 | `AnalystDecision` has all required fields with correct types |
+| `test_model_validate_json_roundtrip` | success criteria | Survives `model_validate_json()` round-trip |
+| `test_recommended_tools_valid` | ANLST-03 | All tools in `recommended_tools` are in `ACTION_TO_TOOL` keys |
+| `test_business_label_constrained` | ANLST-04 | `business_label` is one of the four literals |
+| `test_build_analyst_context_no_df` | ANLST-06 | Sentinel-DataFrame test — no raw value escapes |
+| `test_build_analyst_context_key_fields` | ANLST-06 | Output contains diagnostic fields, not raw data |
+| `test_fallback_on_api_failure` | success criteria | Returns `AnalystDecision` even when API call raises |
+| `test_narrative_no_jargon` | ANLST-05 | Narrative field populated (content checked in integration) |
+| `test_rejected_claims_in_context` | ANLST-02 | `rejected_claims` from Critic present in context on retry |
+| `test_no_minimax_key_uses_fallback` | ANLST-06 | Unset `MINIMAX_API_KEY` triggers deterministic fallback |
 
 ---
 
@@ -696,4 +903,4 @@ Phase 1 is tested by 13 unit tests. Phase 2 (Critic) is tested with zero API cal
 
 ---
 
-*Document reflects v3 design as of 2026-03-29. Updated after Phase 02 (Critic Agent) planning.*
+*Document reflects v3 design as of 2026-03-29. Updated after Phase 03 (Ralph Loop Utility) planning.*
