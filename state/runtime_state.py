@@ -26,6 +26,7 @@ class ActionRecord(TypedDict, total=False):
 class AgentState(TypedDict):
     dataset_metadata: Dict[str, Dict[str, Any]]
     signals: Dict[str, Dict[str, Any]]
+    temporal_signals: Dict[str, Any]
     risk_scores: Dict[str, float]
     analysis_results: Dict[str, Dict[str, Any]]
     insights: Dict[str, Dict[str, Any]]
@@ -40,6 +41,7 @@ def initialize_state() -> AgentState:
     return {
         "dataset_metadata": {},
         "signals": {},
+        "temporal_signals": {},
         "risk_scores": {},
         "analysis_results": {},
         "insights": {},
