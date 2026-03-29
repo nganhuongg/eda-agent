@@ -47,10 +47,10 @@ Plans:
   3. The Critic module makes zero network or API calls — it passes with the Groq API key unset
   4. `CriticVerdict` is a Pydantic BaseModel that passes `model_validate_json()` round-trip without error
   5. Rejected findings carry the Critic's `rejected_claims` list so the Analyst can address specific failures in the next attempt
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 02-01-PLAN.md — agents/ package scaffold + CriticVerdict schema + test_critic.py (RED state)
+- [x] 02-01-PLAN.md — agents/ package scaffold + CriticVerdict schema + test_critic.py (RED state)
 - [ ] 02-02-PLAN.md — validate_finding() implementation + gut insight/critic.py + remove orchestrator import
 
 ### Phase 3: Ralph Loop Utility
@@ -107,7 +107,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. State Schema + Temporal Profiler | 2/2 | Complete   | 2026-03-29 |
-| 2. Critic Agent | 0/2 | Not started | - |
+| 2. Critic Agent | 1/2 | In Progress|  |
 | 3. Ralph Loop Utility | 0/? | Not started | - |
 | 4. LLM Analyst | 0/? | Not started | - |
 | 5. Orchestrator Restructure | 0/? | Not started | - |
