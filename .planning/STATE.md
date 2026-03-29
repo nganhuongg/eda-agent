@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-29T07:02:21.197Z"
+status: executing
+last_updated: "2026-03-29T15:27:03.199Z"
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_plans: 6
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State: Risk-Driven EDA Agent v3
 
 **Last updated:** 2026-03-29
-**Session:** Completed Plan 02-02 (validate_finding() implemented, 13 tests GREEN, suggest_investigations removed)
+**Session:** Completed Plan 03-01 (ralph_loop.py shell + 10 RED-state test stubs, Wave 0 TDD scaffold complete)
 
 ---
 
@@ -23,22 +23,22 @@ progress:
 
 **Core Value:** Surface the most important business risks and opportunities hidden in a CSV — ranked, grounded, and critic-verified — so decision-makers can act without needing to read tables.
 
-**Current Focus:** Phase 02 — critic-agent
+**Current Focus:** Phase 03 — ralph-loop-utility
 
 ---
 
 ## Current Position
 
-Phase: 02 (critic-agent) — COMPLETE
-Plan: 2 of 2 (Plan 02 complete)
+Phase: 03 (ralph-loop-utility) — EXECUTING
+Plan: 1 of 2
 **Milestone:** v3 — LLM Analyst + Critic + Ralph Loop
 **Phase:** 3 of 6 (ralph loop utility)
-**Plan:** Not started
-**Status:** Ready to plan
+**Plan:** Plan 01 of 2 complete — Plan 02 ready to execute
+**Status:** Executing Phase 03 (Plan 02 next)
 
 **Progress:**
 
-[██████████] 100%
+[████████░░] 83%
 [██████████] 100% (Phase 01 complete)
 Phase 1 [██████████] 100%  State Schema + Temporal Profiler — DONE
 Phase 2 [██████████] 100%  Critic Agent — DONE
@@ -68,6 +68,7 @@ Phase 6 [          ] 0%    Global Synthesizer + Output Review
 | Phase 01 P02 | 8min | 2 tasks | 1 files |
 | Phase 02-critic-agent P01 | 2min | 2 tasks | 3 files |
 | Phase 02-critic-agent P02 | 2min | 2 tasks | 2 files |
+| Phase 03-ralph-loop-utility P01 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Phase 6 [          ] 0%    Global Synthesizer + Output Review
 | Lazy import for validate_finding in tests | Allows pytest to collect 13 tests while maintaining RED state ImportError at test runtime | Phase 02-01 |
 | validate_finding two-source lookup | signals first, then analysis_results — per CRIT-01 requirement | Phase 02-02 |
 | suggest_investigations removed entirely | No replacement; orchestrator Phase 5 owns full restructure | Phase 02-02 |
+| pytest.raises(NotImplementedError) as RED state | Ensures stubs are wired; no pytest.mark.skip — stubs must prove imports succeed | Phase 03-01 |
+| Lazy import helpers for run_loop and quality_bar_critic | Mirror test_critic.py pattern; collection survives import path changes | Phase 03-01 |
 | resample("ME") not resample("M") | pandas 2.x deprecation; no FutureWarning in output | Phase 01-01 |
 | fill_method=None on pct_change() | Suppresses pandas 3.x FutureWarning | Phase 01-01 |
 | temporal_signals added directly to AgentState | Simpler than TypedDict inheritance; all v2 fields unbroken | Phase 01-01 |

@@ -65,7 +65,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — TDD Wave 0: test stubs (RED state) + ralph_loop.py shell
+- [x] 03-01-PLAN.md — TDD Wave 0: test stubs (RED state) + ralph_loop.py shell
 - [ ] 03-02-PLAN.md — Implementation: run_loop() + quality_bar_critic() GREEN
 
 ### Phase 4: LLM Analyst

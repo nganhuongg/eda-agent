@@ -24,14 +24,14 @@
 
 ### Ralph Loop — Investigation Checkpoint
 
-- [ ] **LOOP-01**: Investigation loop runs until Critic approves the insight batch or max iterations (5) reached
-- [ ] **LOOP-02**: Each loop iteration passes prior rejection feedback to the Analyst for the next attempt
-- [ ] **LOOP-03**: Loop exits gracefully after max iterations with best available result, never blocking run completion
+- [x] **LOOP-01**: Investigation loop runs until Critic approves the insight batch or max iterations (5) reached
+- [x] **LOOP-02**: Each loop iteration passes prior rejection feedback to the Analyst for the next attempt
+- [x] **LOOP-03**: Loop exits gracefully after max iterations with best available result, never blocking run completion
 
 ### Ralph Loop — Output Review Checkpoint
 
-- [ ] **LOOP-04**: Output review loop runs after global synthesis until report quality bar is met or max iterations reached
-- [ ] **LOOP-05**: Quality bar checks: all findings have business labels, no unsupported numeric claims, ranked order present
+- [x] **LOOP-04**: Output review loop runs after global synthesis until report quality bar is met or max iterations reached
+- [x] **LOOP-05**: Quality bar checks: all findings have business labels, no unsupported numeric claims, ranked order present
 
 ### Multi-Angle Synthesis
 
@@ -100,11 +100,11 @@ Deferred to future release.
 | CRIT-03 | Phase 2 | Complete |
 | CRIT-04 | Phase 2 | Complete |
 | CRIT-05 | Phase 2 | Complete |
-| LOOP-01 | Phase 3 | Pending |
-| LOOP-02 | Phase 3 | Pending |
-| LOOP-03 | Phase 3 | Pending |
-| LOOP-04 | Phase 3 | Pending |
-| LOOP-05 | Phase 3 | Pending |
+| LOOP-01 | Phase 3 | Complete |
+| LOOP-02 | Phase 3 | Complete |
+| LOOP-03 | Phase 3 | Complete |
+| LOOP-04 | Phase 3 | Complete |
+| LOOP-05 | Phase 3 | Complete |
 | ANLST-01 | Phase 4 | Pending |
 | ANLST-02 | Phase 4 | Pending |
 | ANLST-03 | Phase 4 | Pending |
