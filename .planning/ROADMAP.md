@@ -93,7 +93,11 @@ Plans:
   2. No agent module (llm_analyst, critic_agent, insight_generator) receives a `pd.DataFrame` object — confirmed by running a sentinel-df smoke test where any unexpected df access raises immediately
   3. The orchestrator loop handles a column whose Analyst consistently fails Critic review — it logs the exhaustion warning, uses the best attempt, and continues to the next column
   4. The v2 output contract is preserved: `outputs/report.md` and `outputs/plots/` are still produced when the run completes
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — TDD RED stubs + AgentState.analyst_decisions extension + run_agent() column loop rewrite
+- [ ] 05-02-PLAN.md — Tests GREEN + full regression suite 51 tests passing
 
 ### Phase 6: Global Synthesizer + Output Review
 **Goal**: All per-column findings are synthesized into a single ranked report, reviewed through Ralph Loop Gate 2, and written to disk in v2-compatible output format with optional LLM narrative
@@ -118,5 +122,5 @@ Plans:
 | 2. Critic Agent | 2/2 | Complete   | 2026-03-29 |
 | 3. Ralph Loop Utility | 2/2 | Complete   | 2026-03-29 |
 | 4. LLM Analyst | 2/2 | Complete   | 2026-03-29 |
-| 5. Orchestrator Restructure | 0/? | Not started | - |
+| 5. Orchestrator Restructure | 0/2 | Not started | - |
 | 6. Global Synthesizer + Output Review | 0/? | Not started | - |
