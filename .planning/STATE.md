@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-last_updated: "2026-03-29T17:51:22.809Z"
+status: executing
+last_updated: "2026-03-29T18:33:59.445Z"
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_plans: 10
+  completed_plans: 9
+  percent: 90
 ---
 
 # Project State: Risk-Driven EDA Agent v3
 
 **Last updated:** 2026-03-29
-**Session:** Completed Plan 04-02 (analyze_column full implementation with MiniMax API + tenacity retry + deterministic fallback, all 12 tests GREEN, 48 total tests GREEN)
+**Session:** Completed Plan 05-01 (orchestrator rewrite — column-based loop, tools-first, _make_gate1_critic Gate 1, analyst_decisions state key, 3 RED stubs wired, 48 prior tests still GREEN)
 
 ---
 
@@ -23,22 +23,22 @@ progress:
 
 **Core Value:** Surface the most important business risks and opportunities hidden in a CSV — ranked, grounded, and critic-verified — so decision-makers can act without needing to read tables.
 
-**Current Focus:** Phase 04 — LLM Analyst
+**Current Focus:** Phase 05 — orchestrator-restructure
 
 ---
 
 ## Current Position
 
-Phase: 04 (llm-analyst) — COMPLETE
+Phase: 05 (orchestrator-restructure) — EXECUTING
 Plan: 2 of 2
 **Milestone:** v3 — LLM Analyst + Critic + Ralph Loop
 **Phase:** 4 of 6 (llm analyst)
 **Plan:** 2 complete, 0 remaining
-**Status:** Plan 04-02 complete — Phase 04 fully done, ready for Phase 05
+**Status:** Executing Phase 05
 
 **Progress:**
 
-[██████████] 100%
+[█████████░] 90%
 [██████████] 100% (Phase 01 complete)
 Phase 1 [██████████] 100%  State Schema + Temporal Profiler — DONE
 Phase 2 [██████████] 100%  Critic Agent — DONE
@@ -72,6 +72,7 @@ Phase 6 [          ] 0%    Global Synthesizer + Output Review
 | Phase 03-ralph-loop-utility P02 | 2min | 2 tasks | 2 files |
 | Phase 04-llm-analyst P01 | 8min | 2 tasks | 3 files |
 | Phase 04-llm-analyst P02 | 12min | 2 tasks | 2 files |
+| Phase 05-orchestrator-restructure P01 | 2min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,10 @@ Phase 6 [          ] 0%    Global Synthesizer + Output Review
 | Catch tenacity.RetryError in analyze_column | reraise=False raises RetryError after 3 exhausted attempts, not None — must be caught alongside APIError for fallback | Phase 04-02 |
 | Lazy import of generate_insight_for_column in _deterministic_fallback | Avoids circular import risk; mirrors test_ralph_loop.py pattern | Phase 04-02 |
 | claims=[] always in deterministic fallback | Prevents Critic rejections from ungrounded claims (Pitfall 4 guard) | Phase 04-02 |
+| Column-based outer loop replaces step-based loop | D-01 requirement; one iteration per high-risk unanalyzed column | Phase 05-01 |
+| _run_tools_for_column() is the single df boundary point | D-07 structural enforcement; df never passed to analyze_column, run_loop, or validate_finding | Phase 05-01 |
+| _make_gate1_critic() wraps validate_finding as CriticVerdict closure | D-05 requirement; run_loop needs critic_fn: Callable[[Any], CriticVerdict] | Phase 05-01 |
+| analyst_decisions typed as Dict[str, Any] in TypedDict | Avoids circular import from agents/ package; AnalystDecision lives in agents/schemas.py | Phase 05-01 |
 | resample("ME") not resample("M") | pandas 2.x deprecation; no FutureWarning in output | Phase 01-01 |
 | fill_method=None on pct_change() | Suppresses pandas 3.x FutureWarning | Phase 01-01 |
 | temporal_signals added directly to AgentState | Simpler than TypedDict inheritance; all v2 fields unbroken | Phase 01-01 |

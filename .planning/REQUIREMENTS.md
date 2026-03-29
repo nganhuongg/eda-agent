@@ -52,7 +52,7 @@
 - [ ] **RPT-01**: Final report ranks all findings by importance (highest-risk first)
 - [ ] **RPT-02**: Each finding includes a business label (risk / opportunity / anomaly / trend)
 - [ ] **RPT-03**: Report includes a temporal section with trends, comparisons, and forecasts when date column detected
-- [ ] **RPT-04**: Report preserves v2 output format: `outputs/report.md` + `outputs/plots/`
+- [x] **RPT-04**: Report preserves v2 output format: `outputs/report.md` + `outputs/plots/`
 - [ ] **RPT-05**: Optional LLM narrative report (`outputs/report_llm.md`) still generated via Groq when API key set
 
 ---
@@ -116,5 +116,5 @@ Deferred to future release.
 | RPT-01 | Phase 6 | Pending |
 | RPT-02 | Phase 6 | Pending |
 | RPT-03 | Phase 6 | Pending |
-| RPT-04 | Phase 6 | Pending |
+| RPT-04 | Phase 6 | Complete |
 | RPT-05 | Phase 6 | Pending |
