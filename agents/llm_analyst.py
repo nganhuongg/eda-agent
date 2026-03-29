@@ -9,6 +9,7 @@ import openai
 from openai import OpenAI
 from pydantic import ValidationError
 from tenacity import (
+    RetryError,
     retry,
     retry_if_exception_type,
     stop_after_attempt,
@@ -195,6 +196,8 @@ def analyze_column(
         raw_json = _call_minimax(client, messages)
     except openai.APIError:
         pass  # Network, auth, timeout — immediate fallback without retry
+    except RetryError:
+        pass  # tenacity exhausted all 3 RateLimitError attempts (D-08) — fall back
 
     if raw_json is not None:
         try:
