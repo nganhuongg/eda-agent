@@ -7,12 +7,12 @@
 
 ### LLM Analyst Agent
 
-- [ ] **ANLST-01**: LLM Analyst selects the next column to investigate based on risk scores and prior findings
-- [ ] **ANLST-02**: LLM Analyst forms a testable hypothesis before each analysis tool is invoked
-- [ ] **ANLST-03**: LLM Analyst recommends which analysis tools to run based on column signals
-- [ ] **ANLST-04**: LLM Analyst labels each finding as risk, opportunity, or anomaly
-- [ ] **ANLST-05**: LLM Analyst explains each finding in plain business language without statistical jargon
-- [ ] **ANLST-06**: LLM Analyst receives only computed signal dicts — never raw CSV rows or column values
+- [x] **ANLST-01**: LLM Analyst selects the next column to investigate based on risk scores and prior findings
+- [x] **ANLST-02**: LLM Analyst forms a testable hypothesis before each analysis tool is invoked
+- [x] **ANLST-03**: LLM Analyst recommends which analysis tools to run based on column signals
+- [x] **ANLST-04**: LLM Analyst labels each finding as risk, opportunity, or anomaly
+- [x] **ANLST-05**: LLM Analyst explains each finding in plain business language without statistical jargon
+- [x] **ANLST-06**: LLM Analyst receives only computed signal dicts — never raw CSV rows or column values
 
 ### Critic Agent
 
@@ -105,12 +105,12 @@ Deferred to future release.
 | LOOP-03 | Phase 3 | Complete |
 | LOOP-04 | Phase 3 | Complete |
 | LOOP-05 | Phase 3 | Complete |
-| ANLST-01 | Phase 4 | Pending |
-| ANLST-02 | Phase 4 | Pending |
-| ANLST-03 | Phase 4 | Pending |
-| ANLST-04 | Phase 4 | Pending |
-| ANLST-05 | Phase 4 | Pending |
-| ANLST-06 | Phase 4 | Pending |
+| ANLST-01 | Phase 4 | Complete |
+| ANLST-02 | Phase 4 | Complete |
+| ANLST-03 | Phase 4 | Complete |
+| ANLST-04 | Phase 4 | Complete |
+| ANLST-05 | Phase 4 | Complete |
+| ANLST-06 | Phase 4 | Complete |
 | SYNTH-01 | Phase 6 | Pending |
 | SYNTH-02 | Phase 6 | Pending |
 | RPT-01 | Phase 6 | Pending |

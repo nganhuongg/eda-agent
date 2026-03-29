@@ -78,10 +78,10 @@ Plans:
   3. The `build_analyst_context()` helper produces a dict containing only signal fields — no column values, no DataFrame references — confirmed by code inspection and a test with a DataFrame that contains PII sentinel values
   4. Given a 429 MiniMax rate-limit response, the Analyst retries with exponential backoff and falls back to deterministic output if retries are exhausted — the run does not abort
   5. Each Analyst finding is labeled as risk, opportunity, anomaly, or trend and described in plain business language with no raw statistical jargon in the output text
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 04-01-PLAN.md — Wave 0 test stubs (RED) + AnalystDecision schema + build_analyst_context() (partial GREEN)
+- [x] 04-01-PLAN.md — Wave 0 test stubs (RED) + AnalystDecision schema + build_analyst_context() (partial GREEN)
 - [ ] 04-02-PLAN.md — MiniMax API call + retry + fallback + all 12 tests GREEN
 
 ### Phase 5: Orchestrator Restructure
@@ -117,6 +117,6 @@ Plans:
 | 1. State Schema + Temporal Profiler | 2/2 | Complete   | 2026-03-29 |
 | 2. Critic Agent | 2/2 | Complete   | 2026-03-29 |
 | 3. Ralph Loop Utility | 2/2 | Complete   | 2026-03-29 |
-| 4. LLM Analyst | 0/2 | Planned | - |
+| 4. LLM Analyst | 1/2 | In Progress|  |
 | 5. Orchestrator Restructure | 0/? | Not started | - |
 | 6. Global Synthesizer + Output Review | 0/? | Not started | - |
