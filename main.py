@@ -3,6 +3,7 @@ from __future__ import annotations
 from config import CONFIG
 from orchestrator.orchestrator import run_agent
 from profiling.profiler import profile_dataset
+from profiling.temporal_profiler import profile_temporal
 from report.llm_report_writer import generate_llm_report
 from report.report_generator import generate_report
 from state.runtime_state import initialize_state
@@ -16,6 +17,7 @@ if __name__ == "__main__":
     df, metadata, total_columns = profile_dataset(file_path)
     state["dataset_metadata"] = metadata
     state["total_columns"] = total_columns
+    state["temporal_signals"] = profile_temporal(df, metadata)
 
     result = run_agent(state=state, df=df, config=CONFIG)
     state["visualizations"] = generate_insight_driven_plots(state, df)
