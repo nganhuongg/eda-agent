@@ -63,8 +63,11 @@ def test_exits_on_approval():
         CriticVerdict(approved=True, rejected_claims=[]),
     ])
 
-    with pytest.raises(NotImplementedError):
-        run_loop(gen, lambda r: next(verdicts), max_iter=5)
+    result = run_loop(gen, lambda r: next(verdicts), max_iter=5)
+    assert len(calls) == 2       # exited after 2 calls
+    assert calls[0] == []        # iter 0: empty list
+    assert calls[1] == ["x"]    # iter 1: prior rejected_claims
+    assert result == "result"
 
 
 def test_max_iter_never_approves():
@@ -79,8 +82,9 @@ def test_max_iter_never_approves():
     def never_approve(r):
         return CriticVerdict(approved=False, rejected_claims=["always_fails"])
 
-    with pytest.raises(NotImplementedError):
-        run_loop(gen, never_approve, max_iter=5)
+    result = run_loop(gen, never_approve, max_iter=5)
+    assert len(calls) == 5
+    assert result == "result"
 
 
 # ── LOOP-02: Feedback threading ───────────────────────────────────────────────
@@ -100,8 +104,10 @@ def test_feedback_threading():
         CriticVerdict(approved=True, rejected_claims=[]),
     ])
 
-    with pytest.raises(NotImplementedError):
-        run_loop(gen, lambda r: next(verdicts), max_iter=5)
+    run_loop(gen, lambda r: next(verdicts), max_iter=5)
+    assert calls[0] == []
+    assert calls[1] == ["field_a"]
+    assert calls[2] == ["field_b"]
 
 
 def test_first_iter_empty_rejected():
@@ -113,12 +119,12 @@ def test_first_iter_empty_rejected():
         first_call_args.append(list(rejected_claims))
         return "result"
 
-    with pytest.raises(NotImplementedError):
-        run_loop(
-            gen,
-            lambda r: CriticVerdict(approved=True, rejected_claims=[]),
-            max_iter=5,
-        )
+    run_loop(
+        gen,
+        lambda r: CriticVerdict(approved=True, rejected_claims=[]),
+        max_iter=5,
+    )
+    assert first_call_args[0] == []
 
 
 # ── LOOP-03: Graceful exhaustion ──────────────────────────────────────────────
@@ -133,8 +139,8 @@ def test_no_exception_on_exhaustion():
     def never_approve(r):
         return CriticVerdict(approved=False, rejected_claims=["x"])
 
-    with pytest.raises(NotImplementedError):
-        run_loop(gen, never_approve, max_iter=5)
+    result = run_loop(gen, never_approve, max_iter=5)
+    assert result == "last_result"
 
 
 # ── LOOP-04: Gate 2 uses same run_loop ────────────────────────────────────────
@@ -147,8 +153,9 @@ def test_gate2_uses_run_loop():
     def gen(rejected_claims):
         return _make_result(findings=[_make_finding(score=1.0)])
 
-    with pytest.raises(NotImplementedError):
-        run_loop(gen, quality_bar_critic, max_iter=5)
+    # Should not raise — quality_bar_critic is a valid critic_fn
+    result = run_loop(gen, quality_bar_critic, max_iter=5)
+    assert result is not None
 
 
 # ── LOOP-05: quality_bar_critic — three checks ────────────────────────────────
@@ -159,8 +166,9 @@ def test_qbc_missing_business_label():
     result = _make_result(findings=[
         {"business_label": "", "score": 1.0, "column": "revenue", "claims": []},
     ])
-    with pytest.raises(NotImplementedError):
-        quality_bar_critic(result)
+    verdict = quality_bar_critic(result)
+    assert verdict.approved is False
+    assert "findings[0].business_label" in verdict.rejected_claims
 
 
 def test_qbc_unsupported_numeric():
@@ -173,8 +181,9 @@ def test_qbc_unsupported_numeric():
         signals={"revenue": {"mean": 50.0}},
         analysis_results={"revenue": {}},
     )
-    with pytest.raises(NotImplementedError):
-        quality_bar_critic(result)
+    verdict = quality_bar_critic(result)
+    assert verdict.approved is False
+    assert "findings[0].claims.nonexistent_field" in verdict.rejected_claims
 
 
 def test_qbc_unranked_order():
@@ -184,8 +193,9 @@ def test_qbc_unranked_order():
         _make_finding(score=1.0),
         _make_finding(score=3.0),  # ascending — wrong order
     ])
-    with pytest.raises(NotImplementedError):
-        quality_bar_critic(result)
+    verdict = quality_bar_critic(result)
+    assert verdict.approved is False
+    assert "findings_order" in verdict.rejected_claims
 
 
 def test_qbc_all_pass():
@@ -199,5 +209,6 @@ def test_qbc_all_pass():
         signals={"revenue": {"mean": 50.0}},
         analysis_results={"revenue": {}},
     )
-    with pytest.raises(NotImplementedError):
-        quality_bar_critic(result)
+    verdict = quality_bar_critic(result)
+    assert verdict.approved is True
+    assert verdict.rejected_claims == []
