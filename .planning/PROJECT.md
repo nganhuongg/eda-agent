@@ -18,6 +18,11 @@ Surface the most important business risks and opportunities hidden in a CSV — 
 - ✓ Optional LLM narrative rewriting (Groq API) — v2
 - ✓ Deterministic markdown report output — v2
 - ✓ Follow-up investigation queue driven by critic — v2
+- ✓ Trend detection for time-series columns (OLS slope, direction, confidence) — Validated in Phase 01
+- ✓ Period comparison — MoM and YoY deltas when date column present — Validated in Phase 01
+- ✓ Forecasting — Holt-Winters, ADF-gated, 12-period minimum — Validated in Phase 01
+- ✓ Graceful temporal fallback — no date column → status string, no crash — Validated in Phase 01
+- ✓ Temporal signals in AgentState — profile_temporal wired before run_agent — Validated in Phase 01
 
 ### Active
 
@@ -32,6 +37,8 @@ Surface the most important business risks and opportunities hidden in a CSV — 
 - [ ] Period comparison — month-over-month and year-over-year when date column exists
 - [ ] Forecasting — next 1-3 month predictions with ranges when data quality allows
 - [ ] Graceful temporal fallback — skip trend/forecast analysis if no date column detected
+
+<!-- Validated in Phase 01: state-schema-temporal-profiler -->
 - [ ] Ranked insights report with risk/opportunity/anomaly labels per finding
 - [ ] Works on any CSV, optimized for sales/revenue and customer datasets
 
@@ -93,4 +100,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-28 after initialization*
+*Last updated: 2026-03-29 — Phase 01 (state-schema-temporal-profiler) complete*
