@@ -13,7 +13,7 @@
 - [x] **Phase 1: State Schema + Temporal Profiler** - Extend AgentState and build temporal signal extraction with graceful fallback (completed 2026-03-29)
 - [x] **Phase 2: Critic Agent** - Build deterministic Critic with CriticVerdict schema and planned interface migration (completed 2026-03-29)
 - [x] **Phase 3: Ralph Loop Utility** - Build shared iterative refinement loop with feedback threading and max-iteration cap (completed 2026-03-29)
-- [ ] **Phase 4: LLM Analyst** - Build LLM Analyst agent with AnalystDecision schema, context builder, and Groq retry wrapper
+- [ ] **Phase 4: LLM Analyst** - Build LLM Analyst agent with AnalystDecision schema, context builder, and MiniMax retry wrapper
 - [ ] **Phase 5: Orchestrator Restructure** - Rewire orchestrator around Analyst+Critic loop with df boundary enforcement and Ralph Loop Gate 1
 - [ ] **Phase 6: Global Synthesizer + Output Review** - Build multi-angle synthesis, Ralph Loop Gate 2, and produce final ranked report
 
@@ -74,11 +74,15 @@ Plans:
 **Requirements**: ANLST-01, ANLST-02, ANLST-03, ANLST-04, ANLST-05, ANLST-06
 **Success Criteria** (what must be TRUE):
   1. Given a signal dict for a column, the Analyst returns an `AnalystDecision` that specifies the column to investigate, a stated hypothesis, a list of recommended tools, and a business label (risk/opportunity/anomaly/trend)
-  2. `AnalystDecision` passes `model_validate_json()` — any malformed Groq response is treated as rejection, not a recoverable parse error, and logged in full
+  2. `AnalystDecision` passes `model_validate_json()` — any malformed MiniMax response is treated as rejection, not a recoverable parse error, and logged in full
   3. The `build_analyst_context()` helper produces a dict containing only signal fields — no column values, no DataFrame references — confirmed by code inspection and a test with a DataFrame that contains PII sentinel values
-  4. Given a 429 Groq rate-limit response, the Analyst retries with exponential backoff and falls back to deterministic output if retries are exhausted — the run does not abort
+  4. Given a 429 MiniMax rate-limit response, the Analyst retries with exponential backoff and falls back to deterministic output if retries are exhausted — the run does not abort
   5. Each Analyst finding is labeled as risk, opportunity, anomaly, or trend and described in plain business language with no raw statistical jargon in the output text
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Wave 0 test stubs (RED) + AnalystDecision schema + build_analyst_context() (partial GREEN)
+- [ ] 04-02-PLAN.md — MiniMax API call + retry + fallback + all 12 tests GREEN
 
 ### Phase 5: Orchestrator Restructure
 **Goal**: The orchestrator runs the full Analyst+Critic investigation loop (Ralph Loop Gate 1) for each column, enforces the df boundary structurally, and produces a complete per-column findings set
@@ -113,6 +117,6 @@ Plans:
 | 1. State Schema + Temporal Profiler | 2/2 | Complete   | 2026-03-29 |
 | 2. Critic Agent | 2/2 | Complete   | 2026-03-29 |
 | 3. Ralph Loop Utility | 2/2 | Complete   | 2026-03-29 |
-| 4. LLM Analyst | 0/? | Not started | - |
+| 4. LLM Analyst | 0/2 | Planned | - |
 | 5. Orchestrator Restructure | 0/? | Not started | - |
 | 6. Global Synthesizer + Output Review | 0/? | Not started | - |
