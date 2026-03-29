@@ -1,8 +1,11 @@
 import os
+from pathlib import Path
 from typing import Any, Dict, List
 
-import httpx
+from dotenv import load_dotenv
 from openai import OpenAI
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 
 
 def _format_number(value: Any) -> str:
@@ -83,28 +86,16 @@ def _build_llm_input_summary(state: Dict[str, Any], summary: Dict[str, Any]) -> 
 
 
 def generate_llm_report(state: Dict[str, Any], summary: Dict[str, Any]) -> Dict[str, str]:
-    api_key = (os.getenv("GROQ_API_KEY") or "").strip()
+    api_key = (os.getenv("MINIMAX_API_KEY") or "").strip()
     if not api_key:
         return {
             "status": "missing_key",
             "path": "",
-            "error": "GROQ_API_KEY is not set.",
+            "error": "MINIMAX_API_KEY is not set in .env.local.",
         }
 
-    base_url = os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1")
-    model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
-
-    try:
-        with httpx.Client(timeout=10.0) as client:
-            health_response = client.get(base_url.replace("/openai/v1", ""))
-            health_response.raise_for_status()
-    except Exception as exc:
-        return {
-            "status": "request_failed",
-            "api_key": api_key[:4] + "..." if api_key else "None",
-            "path": "",
-            "error": f"Cannot reach Groq API at {base_url}. {type(exc).__name__}: {exc}",
-        }
+    base_url = os.getenv("MINIMAX_BASE_URL", "https://api.minimax.chat/v1")
+    model = os.getenv("MINIMAX_MODEL", "MiniMax-Text-01")
 
     client = OpenAI(
         api_key=api_key,
@@ -150,7 +141,7 @@ Compact Deterministic Report:
         return {
             "status": "request_failed",
             "path": "",
-            "error": f"Groq request failed for model '{model}' at {base_url}. {type(exc).__name__}: {exc}",
+            "error": f"MiniMax request failed for model '{model}' at {base_url}. {type(exc).__name__}: {exc}",
         }
 
     output_path = "outputs/report_llm.md"
