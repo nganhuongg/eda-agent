@@ -35,8 +35,8 @@
 
 ### Multi-Angle Synthesis
 
-- [ ] **SYNTH-01**: Agent investigates each high-risk column from at least two analytical angles before synthesizing findings
-- [ ] **SYNTH-02**: Global synthesizer combines per-column findings into a unified ranked report before output review loop
+- [x] **SYNTH-01**: Agent investigates each high-risk column from at least two analytical angles before synthesizing findings
+- [x] **SYNTH-02**: Global synthesizer combines per-column findings into a unified ranked report before output review loop
 
 ### Temporal Analysis
 
@@ -49,9 +49,9 @@
 
 ### Output & Report
 
-- [ ] **RPT-01**: Final report ranks all findings by importance (highest-risk first)
-- [ ] **RPT-02**: Each finding includes a business label (risk / opportunity / anomaly / trend)
-- [ ] **RPT-03**: Report includes a temporal section with trends, comparisons, and forecasts when date column detected
+- [x] **RPT-01**: Final report ranks all findings by importance (highest-risk first)
+- [x] **RPT-02**: Each finding includes a business label (risk / opportunity / anomaly / trend)
+- [x] **RPT-03**: Report includes a temporal section with trends, comparisons, and forecasts when date column detected
 - [x] **RPT-04**: Report preserves v2 output format: `outputs/report.md` + `outputs/plots/`
 - [ ] **RPT-05**: Optional LLM narrative report (`outputs/report_llm.md`) still generated via Groq when API key set
 
@@ -111,10 +111,10 @@ Deferred to future release.
 | ANLST-04 | Phase 4 | Complete |
 | ANLST-05 | Phase 4 | Complete |
 | ANLST-06 | Phase 4 | Complete |
-| SYNTH-01 | Phase 6 | Pending |
-| SYNTH-02 | Phase 6 | Pending |
-| RPT-01 | Phase 6 | Pending |
-| RPT-02 | Phase 6 | Pending |
-| RPT-03 | Phase 6 | Pending |
+| SYNTH-01 | Phase 6 | Complete |
+| SYNTH-02 | Phase 6 | Complete |
+| RPT-01 | Phase 6 | Complete |
+| RPT-02 | Phase 6 | Complete |
+| RPT-03 | Phase 6 | Complete |
 | RPT-04 | Phase 6 | Complete |
 | RPT-05 | Phase 6 | Pending |

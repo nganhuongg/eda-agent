@@ -109,10 +109,10 @@ Plans:
   3. When a date column is present, the report includes a temporal section with trend directions, MoM/YoY period comparisons, and forecasts (or an explicit data-quality note if forecasting was gated)
   4. The output review loop (Gate 2) runs until all three quality bar checks pass or 5 iterations are reached — the final report always exists on disk regardless
   5. When a Groq API key is set, `outputs/report_llm.md` is also generated; when no key is set, the deterministic `outputs/report.md` alone is produced and the run exits cleanly
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 06-01-PLAN.md — TDD RED stubs + _build_findings_list implementation (synthesis layer GREEN)
+- [x] 06-01-PLAN.md — TDD RED stubs + _build_findings_list implementation (synthesis layer GREEN)
 - [ ] 06-02-PLAN.md — generate_report() rewrite with Gate 2 integration (all Phase 6 tests GREEN)
 
 ---
@@ -126,4 +126,4 @@ Plans:
 | 3. Ralph Loop Utility | 2/2 | Complete   | 2026-03-29 |
 | 4. LLM Analyst | 2/2 | Complete   | 2026-03-29 |
 | 5. Orchestrator Restructure | 2/2 | Complete   | 2026-03-29 |
-| 6. Global Synthesizer + Output Review | 0/2 | Not started | - |
+| 6. Global Synthesizer + Output Review | 1/2 | In Progress|  |
