@@ -106,18 +106,70 @@ def _get_client() -> OpenAI | None:
     reraise=False,
 )
 def _call_minimax(client: OpenAI, messages: list) -> str | None:
-    """Call MiniMax API and return raw JSON string. Raises NotImplementedError until Plan 04-02."""
-    raise NotImplementedError
+    """Call MiniMax API and return raw JSON string."""
+    response = client.chat.completions.create(
+        model="MiniMax-M2.7",
+        messages=messages,
+        response_format={"type": "json_object"},
+    )
+    return response.choices[0].message.content
 
 
 def _build_messages(context: dict, rejected_claims: List[str]) -> list:
     """Build the messages list for the MiniMax API call."""
-    raise NotImplementedError
+    user_content = (
+        f"Column: {context['column']}\n"
+        f"Type: {context['column_type']}\n"
+        f"Risk score: {context['risk_score']}\n"
+        f"Already-analyzed columns: {context['analyzed_columns']}\n"
+        f"Signals:\n"
+        + "\n".join(f"  {k}: {v}" for k, v in context["signals"].items() if v is not None)
+    )
+    if rejected_claims:
+        user_content += (
+            "\n\nPreviously rejected claims: "
+            + str(rejected_claims)
+            + "\nAddress each rejected claim in your revised response."
+        )
+    return [
+        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
+
+
+def _infer_label_from_signals(signals: dict) -> str:
+    """Infer business_label from signal values for deterministic fallback."""
+    if signals.get("outlier_ratio", 0.0) > 0.1 or signals.get("missing_ratio", 0.0) > 0.1:
+        return "risk"
+    if signals.get("skewness", 0.0) > 1.5:
+        return "opportunity"
+    if signals.get("variance", 0.0) > 500.0:
+        return "anomaly"
+    return "trend"
 
 
 def _deterministic_fallback(state: AgentState, column: str) -> AnalystDecision:
     """D-07: wrap deterministic pipeline output into AnalystDecision shape."""
-    raise NotImplementedError
+    from insight.insight_generator import generate_insight_for_column  # noqa: PLC0415
+
+    column_type = state["dataset_metadata"].get(column, {}).get("type", "numeric")
+    signals = state["signals"].get(column, {})
+    analysis_results = state["analysis_results"].get(column, {})
+
+    insight = generate_insight_for_column(column, column_type, signals, analysis_results)
+
+    logging.warning("LLM Analyst fell back to deterministic mode for column '%s'", column)
+
+    return AnalystDecision(
+        column=column,
+        hypothesis=f"Deterministic fallback — column '{column}' flagged by risk planner",
+        recommended_tools=["analyze_distribution"],
+        business_label=_infer_label_from_signals(signals),
+        narrative=str(
+            insight.get("summary", f"Column '{column}' shows notable statistical characteristics.")
+        ),
+        claims=[],  # Always empty — avoids Critic rejections (Pitfall 4)
+    )
 
 
 def analyze_column(
@@ -130,4 +182,26 @@ def analyze_column(
     Signature: analyze_column(state, column, rejected_claims=[])
     Phase 5 usage: run_loop(partial(analyze_column, state, column), critic_fn)
     """
-    raise NotImplementedError
+    rejected_claims = rejected_claims or []
+    client = _get_client()
+    if client is None:
+        return _deterministic_fallback(state, column)
+
+    context = build_analyst_context(state, column)
+    messages = _build_messages(context, rejected_claims)
+
+    raw_json = None
+    try:
+        raw_json = _call_minimax(client, messages)
+    except openai.APIError:
+        pass  # Network, auth, timeout — immediate fallback without retry
+
+    if raw_json is not None:
+        try:
+            return AnalystDecision.model_validate_json(raw_json)
+        except (ValidationError, ValueError):
+            warnings.warn(
+                f"AnalystDecision parse failure for '{column}': {str(raw_json)[:200]}"
+            )
+
+    return _deterministic_fallback(state, column)
