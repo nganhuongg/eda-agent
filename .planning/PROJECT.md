@@ -23,12 +23,15 @@ Surface the most important business risks and opportunities hidden in a CSV — 
 - ✓ Forecasting — Holt-Winters, ADF-gated, 12-period minimum — Validated in Phase 01
 - ✓ Graceful temporal fallback — no date column → status string, no crash — Validated in Phase 01
 - ✓ Temporal signals in AgentState — profile_temporal wired before run_agent — Validated in Phase 01
+- ✓ Critic agent validates every LLM claim against deterministic signals before output — Validated in Phase 02
+- ✓ Critic agent returns structured CriticVerdict (approved + rejected_claims) — Validated in Phase 02
+- ✓ Critic agent is fully deterministic — zero API calls, passes without GROQ_API_KEY — Validated in Phase 02
+- ✓ Rejected findings carry rejected_claims list for Analyst feedback — Validated in Phase 02
 
 ### Active
 
 - [ ] LLM Analyst drives investigation strategy (column selection, hypothesis formation, follow-up decisions)
 - [ ] LLM Analyst contextualizes findings in business terms (risk/opportunity/anomaly labels)
-- [ ] Critic agent validates every LLM claim against deterministic signals before output
 - [ ] Critic agent forces rewrite when unsupported claims are detected
 - [ ] Ralph Loop at investigation checkpoint — cycles until Critic is satisfied
 - [ ] Ralph Loop at output checkpoint — refines final report until quality bar is met
@@ -100,4 +103,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-29 — Phase 01 (state-schema-temporal-profiler) complete*
+*Last updated: 2026-03-29 — Phase 02 (critic-agent) complete*
