@@ -233,32 +233,64 @@ The Critic is the trust mechanism. You should build and test the trust mechanism
 
 ---
 
-### Step 2.1 — Define the `CriticVerdict` Schema
+### Step 2.1 — Delete the legacy `suggest_investigations()` function
 
-**What happens:** Create a Pydantic BaseModel:
+**What happens:** The existing `insight/critic.py` contains `suggest_investigations()` — a deterministic function that recommended next analysis actions based on signal flags. This is deleted entirely.
+
+**Why now?** In v3, the LLM Analyst (Phase 4) takes over investigation strategy. Keeping the old function alongside the new Critic logic would create confusion about what the Critic's job is. Clean break — `insight/critic.py` becomes the claim validator only. The orchestrator's import and call site are also removed in the same wave.
+
+---
+
+### Step 2.2 — Define the `CriticVerdict` Schema
+
+**What happens:** Create `agents/schemas.py` (new `agents/` package) with a Pydantic BaseModel:
 
 ```python
 class CriticVerdict(BaseModel):
     approved: bool
-    rejected_claims: list[str]  # empty if approved
-    reason: str
+    rejected_claims: list[str]  # field names that failed — empty if approved
 ```
 
 **Why Pydantic?**
-Pydantic validates the shape of data at runtime. If the Critic produces output that doesn't match this schema (e.g., a missing field, a wrong type), `model_validate()` raises an error immediately. This prevents silent corruption — the worst kind of bug in an agent pipeline where data flows through many stages.
+Pydantic validates the shape of data at runtime. If the Critic produces output that doesn't match this schema (e.g., a missing field, a wrong type), `model_validate_json()` raises an error immediately. This prevents silent corruption — the worst kind of bug in an agent pipeline where data flows through many stages.
 
 **Why a structured schema instead of a plain dict?**
 Because the Ralph Loop (Phase 3) will read `verdict.approved` and `verdict.rejected_claims` programmatically. A structured object with typed fields is safer than `verdict["approved"]` — it fails loudly at the wrong key, not silently.
 
+**Why `agents/schemas.py` and not inside `insight/critic.py`?**
+`CriticVerdict` is a shared contract — the LLM Analyst (Phase 4) and Ralph Loop (Phase 3) both need to import it. Putting it in a dedicated `agents/schemas.py` gives both future modules a clean import path with no circular dependency risk.
+
 ---
 
-### Step 2.2 — Implement Deterministic Claim Validation
+### Step 2.3 — Implement Deterministic Claim Validation
 
-**What happens:** Create `agents/critic_agent.py`. The Critic receives two things:
-1. An Analyst finding (a string claim, e.g., "sales has high outlier rate")
-2. The signal dict for that column (e.g., `{"outlier_ratio": 0.003, "skewness": 0.4}`)
+**What happens:** Rewrite `insight/critic.py` with one public function: `validate_finding(finding, state)`.
 
-It then checks: does any numeric claim in the finding correspond to a value in the signal dict?
+The Critic receives a **structured finding dict** — not free text. The LLM Analyst outputs explicit field names and values:
+
+```python
+finding = {
+    "column": "revenue",
+    "claims": [
+        {"field": "skewness", "value": 2.3},
+        {"field": "missing_ratio", "value": 0.12}
+    ],
+    "narrative": "Revenue is highly skewed...",
+    "business_label": "risk"
+}
+```
+
+For each claim, the Critic looks up the field in `state["signals"][column]` or `state["analysis_results"][column]` and compares with `math.isclose`:
+
+```python
+math.isclose(claim["value"], signal_value, rel_tol=0.01, abs_tol=0.001)
+```
+
+**Why structured claims instead of parsing text?**
+If the LLM outputs free text ("revenue is highly skewed at 2.3"), the Critic would need to regex-extract `2.3` and guess which signal field it refers to. That's fragile and re-introduces non-determinism. By requiring the LLM to output structured `{"field": "skewness", "value": 2.3}`, the validation becomes a pure dict lookup — no parsing, no ambiguity.
+
+**Why `math.isclose` with `rel_tol=0.01, abs_tol=0.001`?**
+Floating point means exact equality fails even for correct claims. `rel_tol=0.01` allows 1% relative error, which handles large-magnitude values (e.g., revenue figures). `abs_tol=0.001` provides a floor so near-zero values don't cause division instability. Python's `math.isclose` handles both cases in one call.
 
 **Why no LLM call in the Critic?**
 This is the most important design decision in the whole system.
@@ -267,32 +299,45 @@ If you use an LLM to evaluate another LLM's output, you haven't grounded anythin
 
 Grounding means: compare the claim against a number that came from actual computation. That comparison is pure Python logic — no probability, no generation, no hallucination risk. The Critic is the one component in the system that is 100% deterministic and 100% trustworthy.
 
-**What "matching a claim" looks like:**
+**What validation looks like:**
 ```
-Claim: "outlier_ratio is high (0.42)"
-Signal: {"outlier_ratio": 0.003}
-Decision: REJECT — claim says 0.42, signal says 0.003
+Claim: {"field": "outlier_ratio", "value": 0.42}
+Signal: state["signals"]["revenue"]["outlier_ratio"] = 0.003
+Decision: REJECT — math.isclose(0.42, 0.003) is False → add "outlier_ratio" to rejected_claims
 ```
 
 ```
-Claim: "missing_ratio is 12%"
-Signal: {"missing_ratio": 0.118}
-Decision: APPROVE — 0.118 ≈ 12%, within tolerance
+Claim: {"field": "missing_ratio", "value": 0.12}
+Signal: state["signals"]["revenue"]["missing_ratio"] = 0.118
+Decision: APPROVE — math.isclose(0.12, 0.118, rel_tol=0.01) is True
 ```
+
+**Edge cases handled:**
+- `state["signals"][column]` missing → reject all claims cleanly (no KeyError crash)
+- Signal value is `None` or `NaN` → `float()` cast fails → claim rejected (no crash)
+- Empty `claims` list → `approved=True, rejected_claims=[]` (nothing to reject)
 
 ---
 
-### Step 2.3 — Write Tests for the Critic
+### Step 2.4 — Write Tests for the Critic (TDD)
 
-Every Critic behavior is tested before the Critic is used:
+Tests are written in RED state (Wave 1) before the implementation exists (Wave 2). All 13 tests cover CRIT-01 through CRIT-05 plus edge cases:
 
-| Test | What it proves |
-|------|---------------|
-| matching claim → approved=True | Happy path works |
-| unmatched claim → approved=False | Rejection works |
-| zero API calls (no GROQ key) | Critic is truly deterministic |
-| `CriticVerdict` validates via Pydantic | Schema contract holds |
-| rejected_claims carries the offending claim | Feedback is specific enough for Analyst to act on |
+| Test | Requirement | What it proves |
+|------|-------------|---------------|
+| `test_approved_when_claim_matches` | CRIT-01 | Matching claim within tolerance → `approved=True` |
+| `test_rejected_when_no_match` | CRIT-02 | Claim absent from signals → `approved=False` |
+| `test_rejected_when_out_of_tolerance` | CRIT-02 | Claim present but value too different → `approved=False` |
+| `test_critic_verdict_schema` | CRIT-03, CRIT-04 | `CriticVerdict` has correct fields and types |
+| `test_model_validate_json_roundtrip` | CRIT-04 | Survives `model_validate_json()` round-trip |
+| `test_no_api_call_without_groq_key` | CRIT-03 | Passes with `GROQ_API_KEY` unset |
+| `test_rejected_claims_list` | CRIT-05 | `rejected_claims` contains the specific field name |
+| `test_missing_column_in_signals` | edge case | No crash when column not in signals |
+| `test_none_signal_value` | edge case | No crash when signal value is `None` |
+| `test_empty_claims_list` | edge case | Empty claims → `approved=True` |
+| `test_analysis_results_lookup` | CRIT-01 | Falls back to `analysis_results` when not in `signals` |
+| `test_multiple_claims_partial_rejection` | CRIT-02, CRIT-05 | One bad claim rejects the finding; good claim not in list |
+| `test_tolerance_boundary` | CRIT-01 | Claim at exactly 1% tolerance → approved |
 
 ---
 
@@ -651,4 +696,4 @@ Phase 1 is tested by 13 unit tests. Phase 2 (Critic) is tested with zero API cal
 
 ---
 
-*Document reflects v3 design as of 2026-03-28. Update after each phase completes.*
+*Document reflects v3 design as of 2026-03-29. Updated after Phase 02 (Critic Agent) planning.*
