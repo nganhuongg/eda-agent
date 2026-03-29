@@ -40,12 +40,12 @@
 
 ### Temporal Analysis
 
-- [ ] **TEMP-01**: Agent detects date/time columns automatically using `pd.to_datetime` with parse success rate gate (>80%)
-- [ ] **TEMP-02**: Agent computes trend direction (up/down/flat) with confidence level for each numeric column when date column present
-- [ ] **TEMP-03**: Agent computes month-over-month and year-over-year deltas for numeric columns when date column present
-- [ ] **TEMP-04**: Agent forecasts next 1-3 month values with uncertainty ranges when >= 12 data points and stationarity check passes
-- [ ] **TEMP-05**: Agent outputs "No date column detected — trend analysis skipped" when no parseable date column found
-- [ ] **TEMP-06**: Agent flags irregular time series gaps before computing period comparisons
+- [x] **TEMP-01**: Agent detects date/time columns automatically using `pd.to_datetime` with parse success rate gate (>80%)
+- [x] **TEMP-02**: Agent computes trend direction (up/down/flat) with confidence level for each numeric column when date column present
+- [x] **TEMP-03**: Agent computes month-over-month and year-over-year deltas for numeric columns when date column present
+- [x] **TEMP-04**: Agent forecasts next 1-3 month values with uncertainty ranges when >= 12 data points and stationarity check passes
+- [x] **TEMP-05**: Agent outputs "No date column detected — trend analysis skipped" when no parseable date column found
+- [x] **TEMP-06**: Agent flags irregular time series gaps before computing period comparisons
 
 ### Output & Report
 
@@ -89,12 +89,12 @@ Deferred to future release.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEMP-01 | Phase 1 | Pending |
-| TEMP-02 | Phase 1 | Pending |
-| TEMP-03 | Phase 1 | Pending |
-| TEMP-04 | Phase 1 | Pending |
-| TEMP-05 | Phase 1 | Pending |
-| TEMP-06 | Phase 1 | Pending |
+| TEMP-01 | Phase 1 | Complete |
+| TEMP-02 | Phase 1 | Complete |
+| TEMP-03 | Phase 1 | Complete |
+| TEMP-04 | Phase 1 | Complete |
+| TEMP-05 | Phase 1 | Complete |
+| TEMP-06 | Phase 1 | Complete |
 | CRIT-01 | Phase 2 | Pending |
 | CRIT-02 | Phase 2 | Pending |
 | CRIT-03 | Phase 2 | Pending |
