@@ -10,7 +10,6 @@ from execution.analysis_tools import (
     analyze_missing_pattern,
     detect_outliers,
 )
-from insight.critic import suggest_investigations
 from insight.insight_generator import generate_insight_for_column
 from planning.risk_planner import compute_risk_scores, risk_driven_planner
 from profiling.signal_extractor import extract_signals
@@ -108,15 +107,6 @@ def run_agent(state: Dict[str, Any], df: pd.DataFrame, config: Dict[str, Any]) -
         )
         state["insights"][column] = insight
         _record_action(state, step, "evaluate", plan, "completed", insight)
-
-        for suggestion in suggest_investigations(
-            column=column,
-            column_type=column_type,
-            signals=state["signals"][column],
-            insight=insight,
-            analysis_results=state["analysis_results"][column],
-        ):
-            _queue_action(state, suggestion)
 
         if action_name == "analyze_distribution":
             state["analyzed_columns"].add(column)
