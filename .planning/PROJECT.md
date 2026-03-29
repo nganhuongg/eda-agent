@@ -27,6 +27,8 @@ Surface the most important business risks and opportunities hidden in a CSV — 
 - ✓ Critic agent returns structured CriticVerdict (approved + rejected_claims) — Validated in Phase 02
 - ✓ Critic agent is fully deterministic — zero API calls, passes without GROQ_API_KEY — Validated in Phase 02
 - ✓ Rejected findings carry rejected_claims list for Analyst feedback — Validated in Phase 02
+- ✓ run_loop() iterative refinement utility — exits on Critic approval, threads rejected_claims, caps at max_iter — Validated in Phase 03
+- ✓ quality_bar_critic() Gate 2 critic — checks business_label presence, numeric claim grounding, ranked order — Validated in Phase 03
 
 ### Active
 
@@ -103,4 +105,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-29 — Phase 02 (critic-agent) complete*
+*Last updated: 2026-03-29 — Phase 03 (ralph-loop-utility) complete*
