@@ -31,7 +31,11 @@
   3. Given a CSV with a valid date column and >= 12 data points, the profiler computes month-over-month and year-over-year deltas and flags any irregular time-series gaps
   4. Given a CSV with no parseable date column, the run completes and the state contains an explicit "No date column detected — trend analysis skipped" message
   5. `AgentState` schema accepts all new temporal fields without breaking existing v2 field access
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Test infrastructure (Wave 0) + temporal_profiler.py implementation (Wave 1)
+- [ ] 01-02-PLAN.md — AgentState extension + main.py integration wiring (Wave 2)
 
 ### Phase 2: Critic Agent
 **Goal**: A fully deterministic Critic agent exists that validates LLM claims against computed signals and returns a structured CriticVerdict — with no API calls
@@ -98,7 +102,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. State Schema + Temporal Profiler | 0/? | Not started | - |
+| 1. State Schema + Temporal Profiler | 0/2 | Not started | - |
 | 2. Critic Agent | 0/? | Not started | - |
 | 3. Ralph Loop Utility | 0/? | Not started | - |
 | 4. LLM Analyst | 0/? | Not started | - |
