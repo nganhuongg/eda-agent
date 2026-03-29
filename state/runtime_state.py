@@ -30,6 +30,7 @@ class AgentState(TypedDict):
     risk_scores: Dict[str, float]
     analysis_results: Dict[str, Dict[str, Any]]
     insights: Dict[str, Dict[str, Any]]
+    analyst_decisions: Dict[str, Any]  # AnalystDecision objects keyed by column (D-03)
     investigation_queue: List[InvestigationAction]
     analyzed_columns: Set[str]
     action_history: List[ActionRecord]
@@ -45,6 +46,7 @@ def initialize_state() -> AgentState:
         "risk_scores": {},
         "analysis_results": {},
         "insights": {},
+        "analyst_decisions": {},
         "investigation_queue": [],
         "analyzed_columns": set(),
         "action_history": [],
