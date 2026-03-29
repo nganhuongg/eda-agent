@@ -2,20 +2,20 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-last_updated: "2026-03-29T17:46:25.158Z"
+status: completed
+last_updated: "2026-03-29T17:51:22.809Z"
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 7
-  percent: 88
+  completed_plans: 8
+  percent: 100
 ---
 
 # Project State: Risk-Driven EDA Agent v3
 
 **Last updated:** 2026-03-29
-**Session:** Completed Plan 04-01 (AnalystDecision schema + build_analyst_context() implemented, 3/12 tests GREEN, 9 stubs RED for Plan 04-02)
+**Session:** Completed Plan 04-02 (analyze_column full implementation with MiniMax API + tenacity retry + deterministic fallback, all 12 tests GREEN, 48 total tests GREEN)
 
 ---
 
@@ -29,16 +29,16 @@ progress:
 
 ## Current Position
 
-Phase: 04 (llm-analyst) — IN PROGRESS
-Plan: 1 of 2
+Phase: 04 (llm-analyst) — COMPLETE
+Plan: 2 of 2
 **Milestone:** v3 — LLM Analyst + Critic + Ralph Loop
 **Phase:** 4 of 6 (llm analyst)
-**Plan:** 1 complete, 1 remaining
-**Status:** Plan 04-01 complete — ready for Plan 04-02
+**Plan:** 2 complete, 0 remaining
+**Status:** Plan 04-02 complete — Phase 04 fully done, ready for Phase 05
 
 **Progress:**
 
-[█████████░] 88%
+[██████████] 100%
 [██████████] 100% (Phase 01 complete)
 Phase 1 [██████████] 100%  State Schema + Temporal Profiler — DONE
 Phase 2 [██████████] 100%  Critic Agent — DONE
@@ -71,6 +71,7 @@ Phase 6 [          ] 0%    Global Synthesizer + Output Review
 | Phase 03-ralph-loop-utility P01 | 3min | 2 tasks | 2 files |
 | Phase 03-ralph-loop-utility P02 | 2min | 2 tasks | 2 files |
 | Phase 04-llm-analyst P01 | 8min | 2 tasks | 3 files |
+| Phase 04-llm-analyst P02 | 12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,9 @@ Phase 6 [          ] 0%    Global Synthesizer + Output Review
 | AnalystDecision in agents/schemas.py alongside CriticVerdict | agents/ is the package for all agent schemas | Phase 04-01 |
 | build_analyst_context enforces df boundary by TypedDict design | TypedDict cannot hold a DataFrame key; sentinel-df test confirms | Phase 04-01 |
 | Literal type for business_label in AnalystDecision | Ensures only risk/opportunity/anomaly/trend are valid at Pydantic validation time | Phase 04-01 |
+| Catch tenacity.RetryError in analyze_column | reraise=False raises RetryError after 3 exhausted attempts, not None — must be caught alongside APIError for fallback | Phase 04-02 |
+| Lazy import of generate_insight_for_column in _deterministic_fallback | Avoids circular import risk; mirrors test_ralph_loop.py pattern | Phase 04-02 |
+| claims=[] always in deterministic fallback | Prevents Critic rejections from ungrounded claims (Pitfall 4 guard) | Phase 04-02 |
 | resample("ME") not resample("M") | pandas 2.x deprecation; no FutureWarning in output | Phase 01-01 |
 | fill_method=None on pct_change() | Suppresses pandas 3.x FutureWarning | Phase 01-01 |
 | temporal_signals added directly to AgentState | Simpler than TypedDict inheritance; all v2 fields unbroken | Phase 01-01 |
