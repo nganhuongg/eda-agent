@@ -12,7 +12,7 @@
 
 - [x] **Phase 1: State Schema + Temporal Profiler** - Extend AgentState and build temporal signal extraction with graceful fallback (completed 2026-03-29)
 - [x] **Phase 2: Critic Agent** - Build deterministic Critic with CriticVerdict schema and planned interface migration (completed 2026-03-29)
-- [ ] **Phase 3: Ralph Loop Utility** - Build shared iterative refinement loop with feedback threading and max-iteration cap
+- [x] **Phase 3: Ralph Loop Utility** - Build shared iterative refinement loop with feedback threading and max-iteration cap (completed 2026-03-29)
 - [ ] **Phase 4: LLM Analyst** - Build LLM Analyst agent with AnalystDecision schema, context builder, and Groq retry wrapper
 - [ ] **Phase 5: Orchestrator Restructure** - Rewire orchestrator around Analyst+Critic loop with df boundary enforcement and Ralph Loop Gate 1
 - [ ] **Phase 6: Global Synthesizer + Output Review** - Build multi-angle synthesis, Ralph Loop Gate 2, and produce final ranked report
@@ -62,11 +62,11 @@ Plans:
   2. Given a Critic that never approves, the loop exits after exactly 5 iterations and returns the best available result — never raises an exception or blocks run completion
   3. Each iteration receives the `rejected_claims` from the previous Critic verdict appended to its context — verified by inspecting context state at iteration N+1
   4. The output review loop (Gate 2) variant checks all three quality bar rules: business labels present, no unsupported numeric claims, ranked order present
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 03-01-PLAN.md — TDD Wave 0: test stubs (RED state) + ralph_loop.py shell
-- [ ] 03-02-PLAN.md — Implementation: run_loop() + quality_bar_critic() GREEN
+- [x] 03-02-PLAN.md — Implementation: run_loop() + quality_bar_critic() GREEN
 
 ### Phase 4: LLM Analyst
 **Goal**: The LLM Analyst agent can receive signal context, form a testable hypothesis, recommend analysis tools, and return a validated AnalystDecision — without ever receiving a DataFrame
@@ -112,7 +112,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. State Schema + Temporal Profiler | 2/2 | Complete   | 2026-03-29 |
 | 2. Critic Agent | 2/2 | Complete   | 2026-03-29 |
-| 3. Ralph Loop Utility | 0/2 | In progress | - |
+| 3. Ralph Loop Utility | 2/2 | Complete   | 2026-03-29 |
 | 4. LLM Analyst | 0/? | Not started | - |
 | 5. Orchestrator Restructure | 0/? | Not started | - |
 | 6. Global Synthesizer + Output Review | 0/? | Not started | - |
