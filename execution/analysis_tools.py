@@ -35,7 +35,7 @@ def analyze_distribution(df: pd.DataFrame, column: str, column_type: str) -> Dic
 
 def detect_outliers(df: pd.DataFrame, column: str) -> Dict[str, Any]:
     series = df[column].dropna()
-    if series.empty:
+    if series.empty or not pd.api.types.is_numeric_dtype(series):
         return {"outlier_count": 0, "outlier_ratio": 0.0, "lower_bound": 0.0, "upper_bound": 0.0}
 
     q1 = series.quantile(0.25)

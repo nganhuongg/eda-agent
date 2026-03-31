@@ -14,12 +14,13 @@ if __name__ == "__main__":
     file_path = "data/sample.csv"
 
     state = initialize_state()
-    df, metadata, total_columns = profile_dataset(file_path)
+    # create shared memory
+    df, metadata, total_columns = profile_dataset(file_path) #load csv
     state["dataset_metadata"] = metadata
     state["total_columns"] = total_columns
     state["temporal_signals"] = profile_temporal(df, metadata)
 
-    result = run_agent(state=state, df=df, config=CONFIG)
+    result = run_agent(state=state, df=df, config=CONFIG) #main loop
     state["visualizations"] = generate_insight_driven_plots(state, df)
 
     print("\n=== RUN SUMMARY ===")

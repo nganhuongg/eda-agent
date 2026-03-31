@@ -17,4 +17,3 @@ venv/
 # Ignore deprecated project modules
 controller/
 logging/
-synthesis/

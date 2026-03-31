@@ -3,10 +3,14 @@ from __future__ import annotations
 import logging
 import os
 import warnings
+from pathlib import Path
 from typing import List
 
 import openai
+from dotenv import load_dotenv
 from openai import OpenAI
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env.local")
 from pydantic import ValidationError
 from tenacity import (
     RetryError,
@@ -41,7 +45,10 @@ _SYSTEM_PROMPT = (
     "Do not include any text before or after the JSON object.\n"
     "narrative must use plain language a non-technical stakeholder can understand — "
     "no terms like kurtosis, p-value, adfuller, skewness, or standard deviation.\n"
-    "claims[] must reference only the signal field names provided in the context.\n"
+    "claims[] must reference only the signal field names listed under 'Signals' — "
+    "never include temporal context fields in claims[].\n"
+    "When a 'Temporal context' block is present, incorporate period comparisons naturally "
+    "into the narrative (e.g. 'July was up 3% vs June', 'the column is trending upward').\n"
     "If rejected_claims are provided, address each one in the revised hypothesis and claims."
 )
 
@@ -73,16 +80,45 @@ def build_analyst_context(state: AgentState, column: str) -> dict:
             for k in ("entropy", "dominant_ratio", "unique_count", "missing_ratio")
         }
 
-    # Temporal signals (optional — D-09)
-    temporal = state.get("temporal_signals", {}).get(column, {})
-    for k in ("trend_direction", "trend_confidence", "mom_delta", "yoy_delta", "forecast_values"):
-        if k in temporal:
-            extracted[k] = temporal[k]
+    # Temporal context (optional) — stored separately so the LLM uses these
+    # in narrative prose but does NOT cite them in claims[].
+    # The Critic validates claims against state["signals"], not temporal_signals,
+    # so any temporal field in claims[] would always be rejected.
+    temporal_context = {}
+    col_temporal = (
+        state.get("temporal_signals", {})
+        .get("columns", {})
+        .get(column, {})
+    )
+    if col_temporal:
+        trend = col_temporal.get("trend", {})
+        if trend.get("direction"):
+            temporal_context["trend_direction"] = trend["direction"]
+        if trend.get("confidence"):
+            temporal_context["trend_confidence"] = trend["confidence"]
+
+        period_deltas = col_temporal.get("period_deltas", {})
+        mom = period_deltas.get("mom_pct_change", {})
+        if mom:
+            last_date = list(mom.keys())[-1]
+            last_val = list(mom.values())[-1]
+            # Format as human-readable so the LLM can write "July +3% vs June"
+            temporal_context["mom_delta"] = f"{last_val * 100:+.2f}% ({last_date})"
+        yoy = period_deltas.get("yoy_pct_change", {})
+        if yoy:
+            last_date = list(yoy.keys())[-1]
+            last_val = list(yoy.values())[-1]
+            temporal_context["yoy_delta"] = f"{last_val * 100:+.2f}% ({last_date})"
+
+        forecast_block = col_temporal.get("forecast", {})
+        if forecast_block.get("forecast"):
+            temporal_context["forecast_values"] = forecast_block["forecast"]
 
     return {
         "column": column,
         "column_type": col_type,
         "signals": extracted,
+        "temporal_context": temporal_context,
         "risk_score": state["risk_scores"].get(column, 0.0),
         "analyzed_columns": list(state.get("analyzed_columns", set())),
     }
@@ -107,11 +143,16 @@ def _get_client() -> OpenAI | None:
     reraise=False,
 )
 def _call_minimax(client: OpenAI, messages: list) -> str | None:
-    """Call MiniMax API and return raw JSON string."""
+    """Call MiniMax API and return raw JSON string.
+
+    Uses reasoning_split=True so that <think>...</think> content is separated
+    into reasoning_details and content holds only the JSON output.
+    """
     response = client.chat.completions.create(
-        model="MiniMax-M2.7",
+        model=os.environ.get("MINIMAX_MODEL", "MiniMax-M2.7"),
         messages=messages,
         response_format={"type": "json_object"},
+        extra_body={"reasoning_split": True},
     )
     return response.choices[0].message.content
 
@@ -126,6 +167,12 @@ def _build_messages(context: dict, rejected_claims: List[str]) -> list:
         f"Signals:\n"
         + "\n".join(f"  {k}: {v}" for k, v in context["signals"].items() if v is not None)
     )
+    # Temporal context rendered as a separate block — LLM uses these in narrative
+    # prose but must NOT include them in claims[] (Critic cannot validate them).
+    temporal = context.get("temporal_context", {})
+    if temporal:
+        user_content += "\n\nTemporal context (use in narrative only — do NOT add to claims[]):\n"
+        user_content += "\n".join(f"  {k}: {v}" for k, v in temporal.items())
     if rejected_claims:
         user_content += (
             "\n\nPreviously rejected claims: "
@@ -200,8 +247,13 @@ def analyze_column(
         pass  # tenacity exhausted all 3 RateLimitError attempts (D-08) — fall back
 
     if raw_json is not None:
+        # Strip markdown code fences if model wrapped JSON in ```json ... ```
+        stripped = raw_json.strip()
+        if stripped.startswith("```"):
+            stripped = stripped.split("\n", 1)[-1]  # remove first line (```json or ```)
+            stripped = stripped.rsplit("```", 1)[0].strip()  # remove trailing ```
         try:
-            return AnalystDecision.model_validate_json(raw_json)
+            return AnalystDecision.model_validate_json(stripped)
         except (ValidationError, ValueError):
             warnings.warn(
                 f"AnalystDecision parse failure for '{column}': {str(raw_json)[:200]}"

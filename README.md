@@ -152,17 +152,31 @@ This constraint simultaneously solves confidentiality and hallucination control.
 
 #### Version Comparison
 
-| Capability | V1 | V2 | V3 |
-|---|---|---|---|
-| Column investigation order | Fixed (coverage) | Risk-scored | LLM Analyst decides |
-| LLM role | None | Narrative rewriting only | Drives investigation strategy |
-| Hallucination control | None | None | Critic agent (deterministic) |
-| Self-correction | None | Rule-based follow-up | Ralph Loop with feedback |
-| Temporal analysis | None | None | Trend, MoM/YoY, forecast |
-| Output labels | None | None | Risk / opportunity / anomaly / trend |
-| Output ranking | None | None | Ranked by importance |
-| Privacy enforcement | N/A | Convention | Architectural boundary |
-| UI | CLI only | CLI only | Streamlit web UI |
+| Capability | V1 | V2 | V3 | V4 (Planned) |
+|---|---|---|---|---|
+| Column investigation order | Fixed (coverage) | Risk-scored | LLM Analyst decides | LLM Analyst + business context |
+| LLM role | None | Narrative rewriting only | Drives investigation strategy | Strategy + context-aware interpretation |
+| Hallucination control | None | None | Critic agent (deterministic) | Critic + business threshold validation |
+| Self-correction | None | Rule-based follow-up | Ralph Loop with feedback | Ralph Loop with feedback |
+| Temporal analysis | None | None | Trend, MoM/YoY, forecast | Trend + declared seasonal patterns |
+| Output labels | None | None | Risk / opportunity / anomaly / trend | Labels informed by business definitions |
+| Output ranking | None | None | Ranked by importance | Ranked by importance + business priority |
+| Privacy enforcement | N/A | Convention | Architectural boundary | Architectural boundary |
+| Business context | None | None | None | Company context file (YAML/JSON) |
+| UI | CLI only | CLI only | Streamlit web UI | Streamlit web UI |
+
+### Version 4: Context-Aware Agent (Planned)
+
+Version 4 introduces **company context files** — structured documents that describe the business domain, column semantics, KPI definitions, known data issues, and analyst preferences. The agent reads this context before investigation and uses it to generate insights that are grounded in both statistical signals and business meaning.
+
+Examples of what company context unlocks:
+
+- A column named `rev` is understood as `monthly recurring revenue` — the agent labels findings accordingly instead of treating it as an unknown numeric.
+- A known seasonal pattern (e.g. "Q4 always spikes") is declared in context — the agent does not flag Q4 outliers as anomalies.
+- Business thresholds are declared (e.g. "refund_rate > 5% is a critical risk") — the Analyst can reason against these thresholds instead of relying only on statistical deviation.
+- Column relationships are declared (e.g. "profit is derived from revenue minus cost") — the agent can validate internal consistency and flag contradictions.
+
+The context file format is TBD (likely YAML or JSON), and the Analyst prompt will be extended to include a context section alongside the signal dict. The Critic will also be extended to validate claims against declared business thresholds in addition to computed statistics.
 
 ---
 

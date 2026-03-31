@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import datetime
 import os
 from typing import Any, Dict
+
+from orchestrator.ralph_loop import run_loop, quality_bar_critic
+from synthesis.global_synthesizer import _build_findings_list
 
 
 def _format_number(value: Any) -> str:
@@ -10,76 +14,189 @@ def _format_number(value: Any) -> str:
     return str(value)
 
 
-def generate_report(state: Dict[str, Any], summary: Dict[str, Any]) -> str:
-    lines = ["# Dataset Technical Audit Report", ""]
+def _build_ranked_section(state: Dict[str, Any], reviewed: Dict[str, Any]) -> list:
+    """Render ## Ranked Findings section using Gate 2 reviewed findings.
 
-    lines.extend(
-        [
-            "## 1. Overview",
-            f"- Status: {summary['status']}",
-            f"- Reason: {summary['reason']}",
-            f"- Steps Executed: {summary['steps']}",
-            f"- Columns Analyzed: {summary['columns_analyzed']}/{summary['total_columns']}",
-            "",
-        ]
+    D-04: each analyzed column gets a structured paragraph.
+    D-02: unanalyzed columns (not in Gate 2 findings) get "Below risk threshold" note.
+    D-05: inline visualizations embedded immediately after the finding paragraph.
+    SYNTH-01: single_angle flag from _build_findings_list triggers exact warning string.
+    RPT-01: all columns iterated in descending risk_score order.
+    RPT-02: each finding paragraph includes "**Business label:** {label}" line.
+    """
+    lines = ["## Ranked Findings", ""]
+
+    findings_by_column = {f["column"]: f for f in reviewed.get("findings", [])}
+
+    ranked = sorted(
+        state["risk_scores"].items(),
+        key=lambda x: -x[1],
     )
 
-    lines.append("## 2. Risk Ranking of Columns")
-    ranked_columns = sorted(state["risk_scores"].items(), key=lambda item: (-item[1], item[0]))
-    for column, score in ranked_columns:
-        lines.append(f"- {column}: {_format_number(score)}")
-    lines.append("")
+    for column, score in ranked:
+        finding = findings_by_column.get(column)
 
-    lines.append("## 3. Signal Summary")
-    for column, signals in state["signals"].items():
-        metrics = ", ".join(f"{key}={_format_number(value)}" for key, value in signals.items())
-        lines.append(f"- {column}: {metrics}")
-    lines.append("")
-
-    lines.append("## 4. Investigation History")
-    for entry in state["action_history"]:
-        if entry.get("phase") not in {"plan", "act", "evaluate", "update_state"}:
+        if finding is None:
+            lines.append(f"### Column: {column} (risk score: {score:.3f})")
+            lines.append("Below risk threshold — not investigated.")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
             continue
 
-        details = entry.get("details", {})
-        lines.append(
-            f"- Step {entry['step']} | {entry['phase']} | {entry.get('column', '-')}"
-            f" | {entry.get('action', '-')}"
-            f" | source={entry.get('source', '-')}"
-            f" | reason={entry.get('reason', '-')}"
-            f" | status={entry.get('status', '-')}"
-        )
-        if details:
-            detail_text = ", ".join(f"{key}={_format_number(value)}" for key, value in details.items())
-            lines.append(f"  details: {detail_text}")
-    lines.append("")
+        label = finding["business_label"].upper()
+        lines.append(f"### [{label}] Column: {column} (risk score: {score:.3f})")
+        lines.append(f"**Business label:** {finding['business_label']}")
+        lines.append(f"**Hypothesis:** {finding['hypothesis']}")
 
-    lines.append("## 5. Analysis Results")
-    for column, actions in state["analysis_results"].items():
-        lines.append(f"### {column}")
-        for action, result in actions.items():
-            metrics = ", ".join(f"{key}={_format_number(value)}" for key, value in result.items())
-            lines.append(f"- {action}: {metrics}")
+        col_signals = state["signals"].get(column, {})
+        signal_pairs = list(col_signals.items())[:4]
+        if signal_pairs:
+            key_signals = ", ".join(
+                f"{k}={_format_number(v)}" for k, v in signal_pairs
+            )
+            lines.append(f"**Key signals:** {key_signals}")
+
+        lines.append(f"**Finding:** {finding['narrative']}")
         lines.append("")
 
-    lines.append("## 6. Anomaly Findings")
-    findings_written = False
-    for column, insight in state["insights"].items():
-        for finding in insight.get("anomaly_findings", []):
-            lines.append(f"- {column}: {finding}")
-            findings_written = True
-    if not findings_written:
-        lines.append("- No major anomalies were flagged by the rule-based insight layer.")
+        if finding.get("single_angle"):
+            lines.append("> \u26a0 Single analytical angle \u2014 distribution analysis only")
+            lines.append("")
+
+        column_plots = {
+            key: path
+            for key, path in state.get("visualizations", {}).items()
+            if key.startswith(f"{column}_")
+        }
+        for key, path in column_plots.items():
+            plot_type = key[len(column) + 1:]
+            caption = f"{column} {plot_type} \u2014 {finding['business_label']} finding"
+            lines.append(f"![{caption}]({path})")
+        if column_plots:
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
+
+    return lines
+
+
+def _build_temporal_section(state: Dict[str, Any]) -> list:
+    """Render ## Temporal Analysis section. Only called when temporal_signals is non-empty.
+
+    RPT-03: include trend directions, MoM/YoY comparisons, forecasts or gating notes.
+    D-05: inline temporal visualizations embedded at end of section.
+
+    temporal_signals shape from profile_temporal():
+      {"status": str, "date_column": str, "gap_flags": dict,
+       "columns": {col: {"trend": {...}, "period_deltas": {...}, "forecast": {...}}}}
+    """
+    temporal = state["temporal_signals"]
+    lines = ["## Temporal Analysis", ""]
+
+    date_col = temporal.get("date_column", "")
+    if date_col:
+        lines.append(f"*Date column detected: `{date_col}`*")
+        lines.append("")
+
+    gap_flags = temporal.get("gap_flags", {})
+    if gap_flags.get("irregular"):
+        lines.append(f"> ⚠ Irregular time-series gaps detected: {gap_flags.get('gap_count', 0)} gaps")
+        lines.append("")
+
+    for column, tsig in temporal.get("columns", {}).items():
+        if not isinstance(tsig, dict):
+            continue
+
+        trend = tsig.get("trend", {})
+        direction = trend.get("direction", "unknown")
+        confidence = trend.get("confidence")
+        conf_str = f" (confidence: {confidence})" if confidence else ""
+        lines.append(f"**{column}:** trend {direction}{conf_str}")
+
+        period_deltas = tsig.get("period_deltas", {})
+        mom_series = period_deltas.get("mom_pct_change", {})
+        yoy_series = period_deltas.get("yoy_pct_change", {})
+        if mom_series:
+            last_mom = list(mom_series.values())[-1]
+            lines.append(f"  - Latest MoM: {_format_number(last_mom * 100)}%")
+        if yoy_series:
+            last_yoy = list(yoy_series.values())[-1]
+            lines.append(f"  - Latest YoY: {_format_number(last_yoy * 100)}%")
+
+        forecast_block = tsig.get("forecast", {})
+        forecast_vals = forecast_block.get("forecast")
+        forecast_note = forecast_block.get("note")
+        if forecast_vals:
+            lines.append(f"  - Forecast: {forecast_vals}")
+        elif forecast_note:
+            lines.append(f"  - {forecast_note}")
+
     lines.append("")
 
-    lines.append("## 7. Visualizations")
-    visualizations = state.get("visualizations", {})
-    if visualizations:
-        for name, path in visualizations.items():
-            lines.append(f"- {name}: {path}")
-    else:
-        lines.append("- No visualizations were triggered by the current insight set.")
-    lines.append("")
+    temporal_plots = {
+        key: path
+        for key, path in state.get("visualizations", {}).items()
+        if not any(
+            key.startswith(f"{col}_")
+            for col in state.get("risk_scores", {})
+        )
+    }
+    for key, path in temporal_plots.items():
+        lines.append(f"![{key} temporal plot]({path})")
+    if temporal_plots:
+        lines.append("")
+
+    return lines
+
+
+def generate_report(state: Dict[str, Any], summary: Dict[str, Any]) -> str:
+    """Produce outputs/report.md — ranked, labelled, Gate-2-reviewed business report.
+
+    D-03: rewrites generate_report() in-place; main.py call signature unchanged.
+    D-08: Gate 2 (run_loop + quality_bar_critic) runs before writing to disk.
+    LOOP-03: report always written regardless of Gate 2 outcome.
+    RPT-04: output path is always "outputs/report.md".
+    """
+    reviewed = run_loop(
+        generator_fn=lambda rejected_claims: _build_findings_list(state),
+        critic_fn=quality_bar_critic,
+        max_iter=5,
+    )
+
+    lines: list = ["# Risk-Driven EDA Report", ""]
+
+    analyzed = summary.get("columns_analyzed", 0)
+    total = summary.get("total_columns", state.get("total_columns", 0))
+    lines.extend([
+        "## Executive Summary",
+        "",
+        f"- **Coverage:** {analyzed}/{total} columns analyzed",
+        f"- **Run status:** {summary.get('status', 'UNKNOWN')}",
+        f"- **Reason:** {summary.get('reason', '')}",
+        f"- **Date:** {datetime.date.today().isoformat()}",
+        "",
+    ])
+
+    # Data Quality section — missing heatmap appears before ranked findings
+    # so the reader sees the overall data-completeness picture first.
+    missing_heatmap_path = state.get("visualizations", {}).get("missing_heatmap")
+    if missing_heatmap_path:
+        lines.extend([
+            "## Data Quality",
+            "",
+            "The heatmap below shows missing values across all columns. "
+            "Each white stripe is a missing cell.",
+            "",
+            f"![Missing Value Heatmap]({missing_heatmap_path})",
+            "",
+        ])
+
+    lines.extend(_build_ranked_section(state, reviewed))
+
+    if state.get("temporal_signals"):
+        lines.extend(_build_temporal_section(state))
 
     report_text = "\n".join(lines)
     os.makedirs("outputs", exist_ok=True)

@@ -83,30 +83,41 @@ def plot_correlation_heatmap(df: pd.DataFrame, focus_column: str) -> str | None:
     return path
 
 
+# Signal thresholds that trigger each plot type.
+# These are named constants so they are easy to find and tune.
+MISSING_RATIO_THRESHOLD = 0.05   # any column above this → whole-dataset heatmap (once)
+SKEWNESS_THRESHOLD = 1.0         # absolute skewness above this → distribution plot
+DOMINANT_RATIO_THRESHOLD = 0.5   # categorical column → bar plot
+OUTLIER_RATIO_THRESHOLD = 0.10   # numeric column → boxplot
+
+
 def generate_insight_driven_plots(state: Dict[str, Any], df: pd.DataFrame) -> Dict[str, str]:
+    """Generate plots driven entirely by computed signal values.
+
+    Replaces the old recommended_visualizations approach, which never worked
+    because the orchestrator's insights bridge never populated that key.
+    Each threshold above controls when a plot is triggered.
+    """
     plot_paths: Dict[str, str] = {}
     missing_heatmap_created = False
 
-    for column, insight in state.get("insights", {}).items():
-        requested = set(insight.get("recommended_visualizations", []))
-        column_type = state["dataset_metadata"][column]["type"]
+    for column, signals in state.get("signals", {}).items():
+        column_type = state["dataset_metadata"].get(column, {}).get("type", "unknown")
 
-        if "distribution" in requested and column_type == "numeric":
-            plot_paths[f"{column}_distribution"] = plot_numeric_distribution(df, column)
-
-        if "boxplot" in requested and column_type == "numeric":
-            plot_paths[f"{column}_boxplot"] = plot_boxplot(df, column)
-
-        if "category_distribution" in requested and column_type == "categorical":
-            plot_paths[f"{column}_category_distribution"] = plot_categorical_distribution(df, column)
-
-        if "correlation" in requested and column_type == "numeric":
-            path = plot_correlation_heatmap(df, column)
-            if path:
-                plot_paths[f"{column}_correlation"] = path
-
-        if "missingness" in requested and not missing_heatmap_created:
+        # Missing heatmap — one per dataset, triggered by the first column that
+        # crosses the threshold. Shows the whole-dataset missing-value pattern.
+        if not missing_heatmap_created and signals.get("missing_ratio", 0) > MISSING_RATIO_THRESHOLD:
             plot_paths["missing_heatmap"] = plot_missing_heatmap(df)
             missing_heatmap_created = True
+
+        if column_type == "numeric":
+            if abs(signals.get("skewness", 0)) > SKEWNESS_THRESHOLD:
+                plot_paths[f"{column}_distribution"] = plot_numeric_distribution(df, column)
+            if signals.get("outlier_ratio", 0) > OUTLIER_RATIO_THRESHOLD:
+                plot_paths[f"{column}_boxplot"] = plot_boxplot(df, column)
+
+        elif column_type == "categorical":
+            if signals.get("dominant_ratio", 0) > DOMINANT_RATIO_THRESHOLD:
+                plot_paths[f"{column}_category_distribution"] = plot_categorical_distribution(df, column)
 
     return plot_paths
