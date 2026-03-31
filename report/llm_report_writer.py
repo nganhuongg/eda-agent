@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -21,7 +22,7 @@ def _build_llm_input_summary(state: Dict[str, Any], summary: Dict[str, Any]) -> 
         "## Overview",
         f"- Status: {summary['status']}",
         f"- Reason: {summary['reason']}",
-        f"- Steps Executed: {summary['steps']}",
+        f"- Steps Executed: {summary.get('steps', summary.get('columns_analyzed', '?'))}",
         f"- Columns Analyzed: {summary['columns_analyzed']}/{summary['total_columns']}",
         "",
         "## Top Risk Columns",
@@ -137,6 +138,15 @@ Compact Deterministic Report:
                 "path": "",
                 "error": "LLM response was empty.",
             }
+
+        # Some reasoning models leak their chain-of-thought inside <think>...</think>
+        # tags. Strip it so only the final report text reaches the output file.
+        llm_text = re.sub(r"<think>.*?</think>\s*", "", llm_text, flags=re.DOTALL)
+
+        # MiniMax occasionally slips into Chinese characters mid-sentence.
+        # Remove any CJK unified ideographs so the report stays in English.
+        llm_text = re.sub(r"[\u4e00-\u9fff\u3400-\u4dbf]+", "", llm_text)
+
     except Exception as exc:
         return {
             "status": "request_failed",
@@ -154,3 +164,5 @@ Compact Deterministic Report:
         "path": output_path,
         "error": "",
     }
+
+
