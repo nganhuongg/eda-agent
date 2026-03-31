@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, List
 
-from agents.schemas import CriticVerdict
+from insight.critic import CriticVerdict
 
 
 def run_loop(

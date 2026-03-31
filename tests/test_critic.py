@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 import os
 import pytest
-from agents.schemas import CriticVerdict
+from insight.critic import CriticVerdict
 
 
 # ── Shared fixtures ────────────────────────────────────────────────────────────

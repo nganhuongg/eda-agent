@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from agents.schemas import CriticVerdict
+from insight.critic import CriticVerdict
 
 
 # ── Lazy import helpers (mirrors test_critic.py pattern) ──────────────────────

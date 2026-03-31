@@ -4,7 +4,8 @@ import logging
 import pandas as pd
 import pytest
 from unittest.mock import MagicMock, patch
-from agents.schemas import AnalystDecision, CriticVerdict
+from agents.schemas import AnalystDecision
+from insight.critic import CriticVerdict
 
 
 # ── Lazy import helpers ────────────────────────────────────────────────────────
