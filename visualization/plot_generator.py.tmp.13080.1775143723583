@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any, Dict
 
 import matplotlib
-import numpy as np
 import pandas as pd
 import seaborn as sns
 
@@ -89,44 +88,6 @@ def plot_correlation_heatmap(df: pd.DataFrame, focus_column: str) -> str | None:
     return str(path)
 
 
-def plot_trend_line(df: pd.DataFrame, date_col: str, value_col: str) -> str:
-    """Plot a numeric column over time as a line graph.
-
-    The x-axis is the date column; the y-axis is the numeric value column.
-    A red dashed OLS trend line is overlaid so the direction is visible at a glance.
-    """
-    ensure_output_dir()
-
-    # Sort by date so the line reads left-to-right in time order
-    date_series = pd.to_datetime(df[date_col], errors="coerce")
-    plot_df = df[[value_col]].copy()
-    plot_df["__date__"] = date_series
-    plot_df = plot_df.dropna().sort_values("__date__")
-
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.plot(plot_df["__date__"], plot_df[value_col], linewidth=1.5, label=value_col)
-
-    # OLS trend line: fit a straight line through the data points to show direction
-    x_numeric = (plot_df["__date__"] - plot_df["__date__"].min()).dt.days.values
-    y = plot_df[value_col].values
-    if len(x_numeric) >= 2:
-        coeffs = np.polyfit(x_numeric, y, deg=1)
-        trend_y = np.polyval(coeffs, x_numeric)
-        ax.plot(plot_df["__date__"], trend_y, linestyle="--", color="red",
-                linewidth=1, label="trend (OLS)")
-
-    ax.set_title(f"{value_col} over time")
-    ax.set_xlabel(date_col)
-    ax.set_ylabel(value_col)
-    ax.legend()
-    fig.autofmt_xdate()
-
-    path = PLOTS_DIR / f"{value_col}_trend.png"
-    plt.savefig(path, bbox_inches="tight")
-    plt.close()
-    return str(path)
-
-
 # Signal thresholds that trigger each plot type.
 # These are named constants so they are easy to find and tune.
 MISSING_RATIO_THRESHOLD = 0.05   # any column above this → whole-dataset heatmap (once)
@@ -163,16 +124,5 @@ def generate_insight_driven_plots(state: Dict[str, Any], df: pd.DataFrame) -> Di
         elif column_type == "categorical":
             if signals.get("dominant_ratio", 0) > DOMINANT_RATIO_THRESHOLD:
                 plot_paths[f"{column}_category_distribution"] = plot_categorical_distribution(df, column)
-
-    # Temporal trend plots — one line graph per numeric column that has a
-    # detected trend direction (i.e. temporal profiling ran and found a date column).
-    temporal = state.get("temporal_signals", {})
-    date_col = temporal.get("date_column")
-    if date_col and date_col in df.columns:
-        for col, tsig in temporal.get("columns", {}).items():
-            direction = tsig.get("trend", {}).get("direction", "insufficient_data")
-            # Only plot when a real trend was detected — skip "flat" and "insufficient_data"
-            if direction in ("up", "down") and col in df.columns:
-                plot_paths[f"{col}_trend"] = plot_trend_line(df, date_col, col)
 
     return plot_paths

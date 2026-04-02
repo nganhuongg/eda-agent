@@ -72,11 +72,11 @@ def _build_ranked_section(state: Dict[str, Any], reviewed: Dict[str, Any]) -> li
             for key, path in state.get("visualizations", {}).items()
             if key.startswith(f"{column}_")
         }
+        for key, path in column_plots.items():
+            plot_type = key[len(column) + 1:]
+            caption = f"{column} {plot_type} \u2014 {finding['business_label']} finding"
+            lines.append(f"![{caption}]({path})")
         if column_plots:
-            titles = ", ".join(
-                f'**{key.replace("_", " ")}**' for key in column_plots
-            )
-            lines.append(f"> 📊 See in Visualizations section: {titles}")
             lines.append("")
 
         lines.append("---")
@@ -146,11 +146,9 @@ def _build_temporal_section(state: Dict[str, Any]) -> list:
             for col in state.get("risk_scores", {})
         )
     }
+    for key, path in temporal_plots.items():
+        lines.append(f"![{key} temporal plot]({path})")
     if temporal_plots:
-        titles = ", ".join(
-            f'**{key.replace("_", " ")}**' for key in temporal_plots
-        )
-        lines.append(f"> 📊 See in Visualizations section: {titles}")
         lines.append("")
 
     return lines
